@@ -1,0 +1,6 @@
+{
+  "diagnostics": {
+    "globals": ["MiniTest", "vim"]
+  },
+  "runtime.version": "LuaJIT"
+}
