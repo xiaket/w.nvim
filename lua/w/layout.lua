@@ -247,6 +247,10 @@ function M.update_previous_active_window()
   debug.log("updating previous active window from", current, "to", prev_active_window)
 end
 
+function M.get_previous_active_window()
+  return prev_active_window
+end
+
 --- Check if new split is allowed in direction
 ---@param current_win number Window handle
 ---@param direction "left"|"right"|"up"|"down"
@@ -548,7 +552,7 @@ function M.split(direction)
   debug.log("target window not found")
   -- Check if new split is allowed
   if not can_split(current, direction) then
-    vim.notify("Cannot create new split in this direction", vim.log.levels.WARN)
+    debug.log("Cannot create new split in this direction")
     debug.log("current window:", debug.format_win(vim.api.nvim_get_current_win()))
     debug.log("End of run.", string.rep("=", 80))
     return

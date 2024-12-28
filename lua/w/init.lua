@@ -70,6 +70,7 @@ end
 function M.setup(opts)
   -- Load and validate config
   if not config.setup(opts) then
+    -- Error handling is done in config.setup, nothing more to be done here.
     return
   end
 
