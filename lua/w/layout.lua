@@ -350,9 +350,11 @@ function M.calculate_window_sizes()
 
   -- First handle explorer if exists
   local has_explorer = false
+  local explorer_win = nil
   for _, win_id in ipairs(vim.api.nvim_list_wins()) do
     if is_explorer(win_id) then
       has_explorer = true
+      explorer_win = win_id
       break
     end
   end
@@ -363,6 +365,12 @@ function M.calculate_window_sizes()
     -- Explorer window should be limited to not take too much space
     explorer_width = math.min(explorer_width, math.floor(total_width * 0.3))
     total_width = total_width - explorer_width
+
+    -- Force explorer window size
+    sizes[explorer_win] = {
+      width = explorer_width,
+      height = total_height,
+    }
   end
   debug.log("has_explorer:", has_explorer, "total_width:", total_width)
 
@@ -377,7 +385,7 @@ function M.calculate_window_sizes()
 
     if active_child_idx then
       -- Has active window
-      local active_space = math.floor(avail_space * 0.618)
+      local active_space = math.floor(avail_space * config.options.split_ratio)
       local remaining_space = avail_space - active_space
       local remaining_count = #children - 1
 
@@ -424,11 +432,15 @@ function M.calculate_window_sizes()
     )
 
     if node[1] == "leaf" then
-      sizes[node[2]] = {
-        width = avail_width,
-        height = avail_height,
-      }
-      return 1, (node[2] == active_win)
+      local win_id = node[2]
+      -- Skip if this is explorer window as its size is already set
+      if not is_explorer(win_id) then
+        sizes[win_id] = {
+          width = avail_width,
+          height = avail_height,
+        }
+      end
+      return 1, (win_id == active_win)
     end
 
     -- Find active child
@@ -449,15 +461,18 @@ function M.calculate_window_sizes()
     )
 
     -- Process children with calculated sizes
+    local total_wins, has_active = 0, false
     for i, child in ipairs(node[2]) do
-      process_node(
+      local child_wins, child_active = process_node(
         child,
         node[1] == "row" and child_sizes[i] or avail_width,
         node[1] == "row" and avail_height or child_sizes[i]
       )
+      total_wins = total_wins + child_wins
+      has_active = has_active or child_active
     end
 
-    return #node[2], active_child_idx ~= nil
+    return total_wins, has_active
   end
 
   process_node(tree, total_width, total_height)
