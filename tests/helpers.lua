@@ -26,14 +26,12 @@ H.new_child = function(modules)
       -- Setup base environment
       child.lua([[w = {}]])
 
+      child.lua([[w.init = require('w.init')]])
+      child.lua([[w.init.setup()]])
+
       -- Load requested modules
       for _, mod in ipairs(modules) do
         child.lua(string.format([[w.%s = require('w.%s')]], mod, mod))
-      end
-
-      -- If init module is loaded, call setup
-      if vim.tbl_contains(modules, "init") then
-        child.lua([[w.init.setup()]])
       end
     end,
     post_once = child.stop,
