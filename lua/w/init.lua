@@ -2,10 +2,11 @@ local M = {}
 
 -- Dependencies
 local config = require("w.config")
-local explorer = require("w.explorer")
 
 -- Create user commands
 local function create_commands()
+  -- We will need to load explorer here after the setup of the module
+  local explorer = require("w.explorer")
   local function cmd(name, fn)
     vim.api.nvim_create_user_command(name, fn, {})
   end
@@ -33,6 +34,8 @@ end
 
 -- Create autocommands
 local function create_autocommands()
+  -- We will need to load explorer here after the setup of the module
+  local explorer = require("w.explorer")
   local group = vim.api.nvim_create_augroup(config.options.augroup, { clear = true })
 
   -- Handle window resize
