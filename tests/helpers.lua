@@ -4,6 +4,10 @@ local H = {}
 -- Common dependencies
 H.new_set = MiniTest.new_set
 H.assert_equal = MiniTest.expect.equality
+H.assert_almost_equal = function(a, b)
+  local diff = math.abs(a - b)
+  MiniTest.expect.equality(diff <= 1, true)
+end
 
 -- Create pre-configured child process helper
 H.new_child = function(modules)
@@ -48,13 +52,9 @@ H.window = {
     H.assert_equal(child.lua_get("#vim.api.nvim_list_wins()"), count)
   end,
 
-  get_current = function(child)
-    return child.lua_get("vim.api.nvim_get_current_win()")
-  end,
-
   expect_count_and_pos = function(child, count, win_id)
     H.assert_equal(H.window.get_count(child), count)
-    H.assert_equal(H.window.get_current(child), win_id)
+    H.assert_equal(child.lua_get("vim.api.nvim_get_current_win()"), win_id)
   end,
 }
 
