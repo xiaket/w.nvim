@@ -1,8 +1,9 @@
 -- debug.lua
 local M = {}
+local config = require("w.config")
 
 -- Enable or disable debug globally
-M.enabled = true
+local enabled = config.options.debug or false
 -- log file path instead of stdout
 M.log_file_path = "/tmp/lua-debug.log"
 local log_file
@@ -22,7 +23,7 @@ end
 ---@param prefix string prefix for the log
 ---@param ... any additional information to log
 function M.log(prefix, ...)
-  if not M.enabled then
+  if not enabled then
     return
   end
   local parts = vim.tbl_map(tostring, { ... })
@@ -66,7 +67,7 @@ end
 ---Dump all buffer information
 ---@param prefix string prefix for the log
 function M.dump_buffers(prefix)
-  if not M.enabled then
+  if not enabled then
     return
   end
   M.log(prefix, "buffer list:")

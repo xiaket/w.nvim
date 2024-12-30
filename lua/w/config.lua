@@ -1,7 +1,7 @@
 local M = {}
 
 ---@class Config
-M.defaults = {
+local defaults = {
   augroup = "W",
   -- File explorer settings
   explorer_window_width = 25, -- default file explorer window width
@@ -9,12 +9,13 @@ M.defaults = {
   max_files = 100, -- maximum number of files in file explorer
   show_hidden = true, -- whether to show hidden files by default
   explorer_window_keymaps = { -- default keymaps in file explorer
-    close = "<ESC>",
+    close = "q",
     go_up = "h",
     open = "<CR>",
   },
   -- Window management settings
   split_ratio = 0.618, -- golden ratio for window splits
+  debug = true, -- enable debug
 }
 
 M.options = {}
@@ -52,7 +53,7 @@ end
 ---@return boolean success
 function M.setup(user_config)
   -- Merge configurations
-  local config = vim.tbl_deep_extend("force", {}, M.defaults, user_config or {})
+  local config = vim.tbl_deep_extend("force", {}, defaults, user_config or {})
 
   -- Validate the merged config
   local valid, err = validate_config(config)
