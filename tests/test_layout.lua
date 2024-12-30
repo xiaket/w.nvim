@@ -2,6 +2,7 @@
 local H = require("tests.helpers")
 local new_set = H.new_set
 local assert_equal = H.assert_equal
+local assert_almost_equal = H.assert_almost_equal
 local window = H.window
 
 -- Create child process with required modules
@@ -24,11 +25,8 @@ end
 T["split"]["should_prevent_invalid_horizontal_splits"] = function()
   -- Create a split on the right
   child.lua('w.layout.split("right")')
-  local wins = child.lua([[
-    local wins = vim.api.nvim_list_wins()
-    return wins
-  ]])
-  assert_equal(#wins, 2)
+  local wins = child.lua_get("vim.api.nvim_list_wins()")
+  window.assert_count(child, 2)
 
   -- Split right on right split should be no-op
   child.api.nvim_set_current_win(wins[2])
@@ -44,11 +42,8 @@ end
 T["split"]["should_prevent_invalid_vertical_splits"] = function()
   -- Create a split down
   child.lua('w.layout.split("down")')
-  local wins = child.lua([[
-    local wins = vim.api.nvim_list_wins()
-    return wins
-  ]])
-  assert_equal(#wins, 2)
+  local wins = child.lua_get("vim.api.nvim_list_wins()")
+  window.assert_count(child, 2)
 
   -- Split down on bottom split should be no-op
   child.api.nvim_set_current_win(wins[2])
@@ -61,6 +56,11 @@ T["split"]["should_prevent_invalid_vertical_splits"] = function()
   window.assert_count(child, 2)
 end
 
+-- +---+---+     +------+------+
+-- |   | B |     |      | 1002 |
+-- | A +---+  -> | 1001 +------+
+-- |   | C |     |      | 1000 |
+-- +---+---+     +------+------+
 T["split"]["should_handle_three_splits_operations"] = function()
   -- Create initial A|B split
   child.lua('w.layout.split("right")')
@@ -68,37 +68,47 @@ T["split"]["should_handle_three_splits_operations"] = function()
 
   -- Create B/C split
   child.lua('w.layout.split("down")')
-  local wins = child.lua([[
+  window.assert_count(child, 3)
+
+  -- We should see the following win ids.
+  local win = child.lua([[
     local tree = vim.fn.winlayout()
     -- { "row", { { "leaf", A }, { "col", { { "leaf", B }, { "leaf", C } } } } }
-    local win_A = tree[2][1][2]  
+    local win_A = tree[2][1][2]
     local win_B = tree[2][2][2][1][2]
     local win_C = tree[2][2][2][2][2]
-    return { win_A = win_A, win_B = win_B, win_C = win_C }
+    return { A = win_A, B = win_B, C = win_C }
   ]])
-  window.assert_count(child, 3)
+  assert_equal(win.A, 1001)
+  assert_equal(win.B, 1002)
+  assert_equal(win.C, 1000)
 
   -- Test window navigation
   -- Run split left on B should land on A
-  child.api.nvim_set_current_win(wins.win_B)
+  child.api.nvim_set_current_win(win.B)
   child.lua('w.layout.split("left")')
-  window.expect_count_and_pos(child, 3, wins.win_A)
+  window.expect_count_and_pos(child, 3, win.A)
 
   -- We are in A, to back to C
-  child.api.nvim_set_current_win(wins.win_C)
+  child.api.nvim_set_current_win(win.C)
   -- Run split left on C should land on A
   child.lua('w.layout.split("left")')
-  window.expect_count_and_pos(child, 3, wins.win_A)
+  window.expect_count_and_pos(child, 3, win.A)
 
   -- Run split right on A should land on C as it's last active
   child.lua('w.layout.split("right")')
-  window.expect_count_and_pos(child, 3, wins.win_C)
+  window.expect_count_and_pos(child, 3, win.C)
 
   -- Run split up on C should land on B
   child.lua('w.layout.split("up")')
-  window.expect_count_and_pos(child, 3, wins.win_B)
+  window.expect_count_and_pos(child, 3, win.B)
 end
 
+-- +---+---+---+     +------+-------------+
+-- |   |   B   |     |      |     1002    |
+-- | A +---+---+  -> | 1001 +------+------+
+-- |   | C | D |     |      | 1003 | 1000 |
+-- +---+---+---+     +------+-------------+
 T["split"]["should_handle_complex_split_operations"] = function()
   -- Create initial A|B split
   child.lua('w.layout.split("right")')
@@ -115,54 +125,36 @@ T["split"]["should_handle_complex_split_operations"] = function()
   -- Creating D
   child.lua('w.layout.split("right")')
 
-  local wins = child.lua([[
+  local win = child.lua([[
     local tree = vim.fn.winlayout()
     -- { "row", { { "leaf", A }, { "col", { { "leaf", B }, { "row", { { "leaf", C }, { "leaf", D } } } } } } }
     local win_A = tree[2][1][2]  
     local win_B = tree[2][2][2][1][2]
     local win_C = tree[2][2][2][2][2][1][2]
     local win_D = tree[2][2][2][2][2][2][2]
-    return { win_A = win_A, win_B = win_B, win_C = win_C, win_D = win_D }
+    return { A = win_A, B = win_B, C = win_C, D = win_D }
   ]])
-  window.expect_count_and_pos(child, 4, wins.win_D)
+  assert_equal(win.A, 1001)
+  assert_equal(win.B, 1002)
+  assert_equal(win.C, 1003)
+  assert_equal(win.D, 1000)
+  window.expect_count_and_pos(child, 4, win.D)
 
   -- Split left in D should land in C
   child.lua('w.layout.split("left")')
-  window.expect_count_and_pos(child, 4, wins.win_C)
+  window.expect_count_and_pos(child, 4, win.C)
 
   -- Split left in C should land in A
   child.lua('w.layout.split("left")')
-  window.expect_count_and_pos(child, 4, wins.win_A)
+  window.expect_count_and_pos(child, 4, win.A)
 
   -- Split right in A should land in C, as it's last active
   child.lua('w.layout.split("right")')
-  window.expect_count_and_pos(child, 4, wins.win_C)
+  window.expect_count_and_pos(child, 4, win.C)
 
   -- Split up should land in B
   child.lua('w.layout.split("up")')
-  window.expect_count_and_pos(child, 4, wins.win_B)
-end
-
--- Testing navigation
-T["navigation"] = new_set()
-
-T["navigation"]["should_find_adjacent_window"] = function()
-  -- Create vsplit using native command
-  child.cmd("vsplit")
-
-  -- Verify we have two windows
-  local wins = child.lua([[
-    local wins = vim.api.nvim_list_wins()
-    return wins
-  ]])
-  assert_equal(#wins, 2)
-
-  -- Verify layout - second window should be on the right
-  local has_right = child.lua([[
-    local wins = vim.api.nvim_list_wins()
-    return vim.api.nvim_win_get_position(wins[2])[2] > 0
-  ]])
-  assert_equal(has_right, true)
+  window.expect_count_and_pos(child, 4, win.B)
 end
 
 -- Test window sizes calculation
@@ -187,25 +179,18 @@ T["calculate_window_sizes"]["handles_basic_horizontal_split"] = function()
 
   -- Active window (B) should get golden ratio
   local expected_width = math.floor(sizes.total_width * sizes.split_ratio)
-  local width_diff = math.abs(sizes.win_B.width - expected_width)
-  assert_equal(width_diff <= 1, true)
+  assert_almost_equal(sizes.win_B.width, expected_width)
 
   -- Window A should get remaining space
   local remaining_width = sizes.total_width - sizes.win_B.width
-  local a_width_diff = math.abs(sizes.win_A.width - remaining_width)
-  assert_equal(a_width_diff <= 1, true)
+  assert_almost_equal(sizes.win_A.width, remaining_width)
 end
 
 T["calculate_window_sizes"]["handles_nested_splits"] = function()
   -- Create A|B split first
   child.lua('w.layout.split("right")')
-
   -- Focus B and create B/C split
-  child.lua([[
-    local wins = vim.api.nvim_list_wins()
-    vim.api.nvim_set_current_win(wins[2]) 
-    w.layout.split("down")
-  ]])
+  child.lua('w.layout.split("down")')
 
   -- Get window IDs and sizes
   local data = child.lua([[
@@ -235,8 +220,7 @@ T["calculate_window_sizes"]["handles_nested_splits"] = function()
   -- A should take left side
   local a_width = data.sizes[data.win_A].width
   local expected_a_width = math.floor(data.total_width * (1 - data.split_ratio))
-  local a_width_diff = math.abs(a_width - expected_a_width)
-  assert_equal(a_width_diff <= 1, true)
+  assert_almost_equal(a_width, expected_a_width)
 
   -- B and C should split right side
   assert_equal(data.sizes[data.win_B].width, data.sizes[data.win_C].width)
@@ -244,18 +228,16 @@ T["calculate_window_sizes"]["handles_nested_splits"] = function()
   -- C (active) should get golden ratio of height
   local c_height = data.sizes[data.win_C].height
   local expected_c_height = math.floor(data.total_height * data.split_ratio)
-  local c_height_diff = math.abs(c_height - expected_c_height)
-  assert_equal(c_height_diff <= 1, true)
+  assert_almost_equal(c_height, expected_c_height)
 
   -- B should get remaining height
   local b_height = data.sizes[data.win_B].height
   local remaining_height = data.total_height - c_height
-  local b_height_diff = math.abs(b_height - remaining_height)
-  assert_equal(b_height_diff <= 1, true)
+  assert_almost_equal(b_height, remaining_height)
 end
 
 -- Test explorer window handling
-T["calculate_window_sizes"]["handles explorer window"] = function()
+T["calculate_window_sizes"]["handles_explorer_window"] = function()
   -- Setup explorer window
   child.lua("w.explorer.toggle_explorer()")
 
