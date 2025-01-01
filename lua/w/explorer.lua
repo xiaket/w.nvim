@@ -239,10 +239,12 @@ local function create_window()
     return nil
   end
 
-  -- Create the window without creating a new buffer
-  vim.cmd("aboveleft " .. config.options.explorer_window_width .. "vnew")
+  -- Save current window
+  local current_win = api.nvim_get_current_win()
+
+  -- Create window at far left
+  vim.cmd("topleft vertical " .. config.options.explorer_window_width .. "vnew")
   local win = api.nvim_get_current_win()
-  local tmp_buf = api.nvim_get_current_buf()
 
   -- Set window options
   api.nvim_win_set_option(win, "number", false)
@@ -253,10 +255,8 @@ local function create_window()
   -- Set our buffer
   api.nvim_win_set_buf(win, buf)
 
-  -- Clean up the temporary buffer
-  if api.nvim_buf_is_valid(tmp_buf) then
-    api.nvim_buf_delete(tmp_buf, { force = true })
-  end
+  -- Restore original window
+  api.nvim_set_current_win(current_win)
 
   state.window = win
   debug.log("explorer", "created window", debug.format_win(win))
@@ -365,82 +365,86 @@ open_current = function()
   debug.dump_buffers("explorer After open_current")
 end
 
----Set root directory for explorer
----@param path string directory path
-function M.set_root(path)
-  debug.log("explorer", "setting root directory:", path)
-  -- Ensure path exists and is directory
-  local stat = vim.loop.fs_stat(path)
-  if not stat or stat.type ~= "directory" then
-    debug.log("explorer", "invalid directory:", path)
+-- Public API
+---Close explorer window if it exists
+function M.close()
+  debug.log("explorer", "close called", state.window and debug.format_win(state.window) or "nil")
+  if not (state.window and api.nvim_win_is_valid(state.window)) then
     return
   end
 
-  -- Update state
-  state.current_dir = vim.fn.fnamemodify(path, ":p"):gsub("/$", "")
-  debug.log("explorer", "root directory set to:", state.current_dir)
+  -- Save position before closing
+  state.last_position = api.nvim_win_get_cursor(state.window)[1]
 
-  -- If explorer is already open, refresh it
-  if state.window and vim.api.nvim_win_is_valid(state.window) then
-    local files, is_truncated = read_dir(state.current_dir)
-    display_files(files, is_truncated)
-  end
+  -- Close window
+  api.nvim_win_close(state.window, false)
+  state.window = nil
+  debug.log("explorer", "closed window, saved position:", state.last_position)
+
+  -- Trigger layout redraw
+  layout.redraw()
 end
 
--- Public API
----Toggle explorer window
----@return boolean success
-function M.toggle_explorer()
-  debug.log("explorer", "toggle called", state.window and debug.format_win(state.window) or "nil")
-  debug.dump_buffers("explorer Before toggle_explorer")
-
+---Open explorer window
+---@param dir? string directory to open, defaults to current_dir
+function M.open(dir)
+  debug.log("explorer", "open called", state.window and debug.format_win(state.window) or "nil")
   if state.window and api.nvim_win_is_valid(state.window) then
-    -- Save position before closing
-    state.last_position = api.nvim_win_get_cursor(state.window)[1]
+    return
+  end
 
-    -- Close window
-    api.nvim_win_close(state.window, false)
-    state.window = nil
-    debug.log("explorer", "closed window, saved position:", state.last_position)
+  -- Handle optional directory parameter
+  if dir then
+    -- Ensure dir exists and is directory
+    local stat = vim.loop.fs_stat(dir)
+    if not stat or stat.type ~= "directory" then
+      debug.log("explorer", "invalid directory:", dir)
+      return
+    end
 
-    -- Trigger layout redraw
-    layout.redraw()
-    debug.dump_buffers("explorer After window close")
-    return true
+    -- Update state
+    state.current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
+    debug.log("explorer", "set directory to:", state.current_dir)
+  end
+
+  -- Create new window
+  local win = create_window()
+  if not win then
+    debug.log("explorer", "failed to create window")
+    return
+  end
+
+  -- Load and display content
+  local files, is_truncated = read_dir(state.current_dir)
+  display_files(files, is_truncated)
+
+  -- Restore position if available
+  if state.last_position then
+    local line_count = api.nvim_buf_line_count(state.buffer)
+    if state.last_position <= line_count then
+      api.nvim_win_set_cursor(win, { state.last_position, 0 })
+      debug.log("explorer", "restored cursor position", state.last_position)
+    end
+  end
+
+  -- Store current file path if any
+  local current_buf = api.nvim_get_current_buf()
+  local current_name = api.nvim_buf_get_name(current_buf)
+  if current_name ~= "" then
+    state.current_file = current_name
+    highlight_current_file()
+  end
+
+  -- Trigger layout redraw
+  layout.redraw()
+end
+
+---Toggle explorer window
+function M.toggle_explorer()
+  if state.window and api.nvim_win_is_valid(state.window) then
+    M.close()
   else
-    -- Create new window
-    local win = create_window()
-    if not win then
-      debug.log("explorer", "failed to create window")
-      return false
-    end
-
-    -- Load and display content
-    local files, is_truncated = read_dir(state.current_dir)
-    display_files(files, is_truncated)
-
-    -- Restore position if available
-    if state.last_position then
-      local line_count = api.nvim_buf_line_count(state.buffer)
-      if state.last_position <= line_count then
-        api.nvim_win_set_cursor(win, { state.last_position, 0 })
-        debug.log("explorer", "restored cursor position", state.last_position)
-      end
-    end
-
-    -- Store current file path if any
-    local current_buf = api.nvim_get_current_buf()
-    local current_name = api.nvim_buf_get_name(current_buf)
-    if current_name ~= "" then
-      state.current_file = current_name
-      highlight_current_file()
-      debug.log("explorer", "highlighted current file:", current_name)
-    end
-
-    -- Trigger layout redraw
-    layout.redraw()
-    debug.dump_buffers("explorer After toggle_explorer")
-    return true
+    M.open()
   end
 end
 

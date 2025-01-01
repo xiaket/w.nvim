@@ -5,14 +5,12 @@ local config = require("w.config")
 
 -- Create user commands
 local function create_commands()
-  -- We will need to load explorer here after the setup of the module
-  local explorer = require("w.explorer")
   local function cmd(name, fn)
     vim.api.nvim_create_user_command(name, fn, {})
   end
 
   cmd("WToggleExplorer", function()
-    explorer.toggle_explorer()
+    require("w.explorer").toggle_explorer()
   end)
 
   cmd("WSplitLeft", function()
@@ -34,9 +32,8 @@ end
 
 -- Create autocommands
 local function create_autocommands()
-  -- We will need to load explorer here after the setup of the module
-  local explorer = require("w.explorer")
-  local group = vim.api.nvim_create_augroup(config.options.augroup, { clear = true })
+  local dir_filetype = "w.dir"
+  local group = vim.api.nvim_create_augroup("W", { clear = true })
 
   -- Handle window resize
   vim.api.nvim_create_autocmd({ "WinEnter", "VimResized" }, {
@@ -54,17 +51,26 @@ local function create_autocommands()
     end,
   })
 
-  -- Handle directory buffer
+  -- Handle directory buffers directly
   vim.api.nvim_create_autocmd("BufEnter", {
     group = group,
     callback = function()
       local bufname = vim.api.nvim_buf_get_name(0)
       if vim.fn.isdirectory(bufname) == 1 then
-        vim.schedule(function()
-          explorer.set_root(bufname)
-          explorer.toggle_explorer()
-        end)
+        vim.bo.filetype = dir_filetype
       end
+    end,
+  })
+
+  -- Handle directories through filetype
+  vim.api.nvim_create_autocmd("FileType", {
+    pattern = dir_filetype,
+    group = group,
+    callback = function()
+      local bufname = vim.api.nvim_buf_get_name(0)
+      vim.schedule(function()
+        require("w.explorer").open(bufname)
+      end)
     end,
   })
 end
