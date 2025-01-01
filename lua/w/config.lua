@@ -2,10 +2,8 @@ local M = {}
 
 ---@class Config
 local defaults = {
-  augroup = "W",
   -- File explorer settings
   explorer_window_width = 25, -- default file explorer window width
-  explorer_window_filetype = "WExplorer", -- default file type for the explorer window
   max_files = 100, -- maximum number of files in file explorer
   show_hidden = true, -- whether to show hidden files by default
   explorer_window_keymaps = { -- default keymaps in file explorer

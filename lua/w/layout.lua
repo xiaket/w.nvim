@@ -1,5 +1,7 @@
 local M = {}
 
+M.EXPLORER_FILETYPE = "WExplorer"
+
 -- Dependencies
 local config = require("w.config")
 local debug = require("w.debug")
@@ -294,7 +296,7 @@ local function is_explorer(win_id)
     return false
   end
   local buf = vim.api.nvim_win_get_buf(win_id)
-  return vim.api.nvim_buf_get_option(buf, "filetype") == config.options.explorer_window_filetype
+  return vim.api.nvim_buf_get_option(buf, "filetype") == M.EXPLORER_WINDOW_FILETYPE
 end
 
 --- Create new split in specified direction

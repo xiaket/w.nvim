@@ -202,7 +202,7 @@ local function ensure_buffer()
   api.nvim_buf_set_option(buf, "buftype", "nofile")
   api.nvim_buf_set_option(buf, "bufhidden", "wipe")
   api.nvim_buf_set_option(buf, "swapfile", false)
-  api.nvim_buf_set_option(buf, "filetype", config.options.explorer_window_filetype)
+  api.nvim_buf_set_option(buf, "filetype", layout.EXPLORER_FILETYPE)
   api.nvim_buf_set_option(buf, "modifiable", false)
 
   -- Setup keymaps

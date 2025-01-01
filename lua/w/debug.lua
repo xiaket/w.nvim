@@ -5,7 +5,7 @@ local config = require("w.config")
 -- Enable or disable debug globally
 local enabled = config.options.debug or false
 -- log file path instead of stdout
-M.log_file_path = "/tmp/lua-debug.log"
+M.log_file_path = "/tmp/w-debug.log"
 local log_file
 if M.log_file_path then
   log_file = io.open(M.log_file_path, "w")
