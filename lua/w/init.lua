@@ -1,33 +1,25 @@
 local M = {}
 
--- Dependencies
-local config = require("w.config")
-
 -- Create user commands
 local function create_commands()
-  local function cmd(name, fn)
-    vim.api.nvim_create_user_command(name, fn, {})
+  local commands = {
+    WToggleExplorer = { module = "explorer", fn = "toggle_explorer" },
+    WSplitLeft = { module = "layout", fn = "split", args = { "left" } },
+    WSplitRight = { module = "layout", fn = "split", args = { "right" } },
+    WSplitUp = { module = "layout", fn = "split", args = { "up" } },
+    WSplitDown = { module = "layout", fn = "split", args = { "down" } },
+  }
+
+  for cmd_name, cmd_def in pairs(commands) do
+    vim.api.nvim_create_user_command(cmd_name, function()
+      local mod = require("w." .. cmd_def.module)
+      if cmd_def.args then
+        mod[cmd_def.fn](unpack(cmd_def.args))
+      else
+        mod[cmd_def.fn]()
+      end
+    end, {})
   end
-
-  cmd("WToggleExplorer", function()
-    require("w.explorer").toggle_explorer()
-  end)
-
-  cmd("WSplitLeft", function()
-    require("w.layout").split("left")
-  end)
-
-  cmd("WSplitRight", function()
-    require("w.layout").split("right")
-  end)
-
-  cmd("WSplitUp", function()
-    require("w.layout").split("up")
-  end)
-
-  cmd("WSplitDown", function()
-    require("w.layout").split("down")
-  end)
 end
 
 -- Create autocommands
@@ -52,6 +44,8 @@ local function create_autocommands()
   })
 
   -- Handle directory buffers directly
+  -- Instead of doing explorer.open right here, we simply set the filetype of the buffer,
+  -- this is to avoid the complication in buffer initialization.
   vim.api.nvim_create_autocmd("BufEnter", {
     group = group,
     callback = function()
@@ -78,7 +72,7 @@ end
 -- Setup function called by lazy.nvim
 function M.setup(opts)
   -- Load and validate config
-  if not config.setup(opts) then
+  if not require("w.config").setup(opts) then
     -- Error handling is done in config.setup, nothing more to be done here.
     return
   end
