@@ -1,17 +1,11 @@
 -- debug.lua
 local M = {}
-local config = require("w.config")
 
 -- Enable or disable debug globally
-local enabled = config.options.debug or false
+M.enabled = false
 -- log file path instead of stdout
-M.log_file_path = "/tmp/w-debug.log"
-local log_file
-if M.log_file_path then
-  log_file = io.open(M.log_file_path, "w")
-else
-  log_file = io.stdout
-end
+M.log_file_path = nil
+local log_file = nil
 
 ---Get current timestamp
 ---@return string|osdate formatted timestamp
@@ -19,13 +13,32 @@ local function get_timestamp()
   return os.date("%Y-%m-%d %H:%M:%S")
 end
 
+---Ensure log file is open
+local function ensure_log_file()
+  if log_file then
+    return
+  end
+
+  if M.log_file_path == nil then
+    log_file = io.stdout
+  else
+    log_file = io.open(M.log_file_path, "w")
+    if not log_file then
+      error("Could not open log file: " .. M.log_file_path)
+    end
+  end
+end
+
 ---Log debug information with a prefix and timestamp
 ---@param prefix string prefix for the log
 ---@param ... any additional information to log
 function M.log(prefix, ...)
-  if not enabled then
+  if not M.enabled then
     return
   end
+
+  ensure_log_file()
+
   local parts = vim.tbl_map(tostring, { ... })
   local message = string.format("[%s] %s %s\n", get_timestamp(), prefix, table.concat(parts, " "))
 
@@ -33,8 +46,6 @@ function M.log(prefix, ...)
   if log_file then
     log_file:write(message)
     log_file:flush()
-  else
-    error("Log file is not available for writing.")
   end
 end
 
@@ -67,7 +78,7 @@ end
 ---Dump all buffer information
 ---@param prefix string prefix for the log
 function M.dump_buffers(prefix)
-  if not enabled then
+  if not M.enabled then
     return
   end
   M.log(prefix, "buffer list:")
@@ -77,5 +88,14 @@ function M.dump_buffers(prefix)
     end
   end
 end
+
+-- Clean up on module unload
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  callback = function()
+    if log_file and log_file ~= io.stdout then
+      log_file:close()
+    end
+  end,
+})
 
 return M

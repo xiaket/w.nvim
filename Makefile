@@ -21,4 +21,4 @@ test_case:
 	$(NVIM_EXEC) --headless --noplugin -u ./tests/init_tests.lua \
 		-c "lua require('mini.test').setup()" \
 		-c "lua local T = dofile('$(FILE)'); if T.setup then T.setup() end" \
-		-c "lua MiniTest.run_file('$(FILE)', { execute = { reporter = MiniTest.gen_reporter.stdout({ group_depth = $(GROUP_DEPTH) }) }, collect = {filter_cases = function(case) return case.desc[3] == '$(CASE)' end }})"
+		-c "lua MiniTest.run_file('$(FILE)', { execute = { reporter = MiniTest.gen_reporter.stdout({ group_depth = $(GROUP_DEPTH) }) }, collect = {filter_cases = function(case) return case.desc[3] == '$(CASE)' end }})" || cat /tmp/w-debug.log

@@ -13,7 +13,7 @@ local defaults = {
   },
   -- Window management settings
   split_ratio = 0.618, -- golden ratio for window splits
-  debug = true, -- enable debug
+  debug = false, -- enable debug
 }
 
 M.options = {}
