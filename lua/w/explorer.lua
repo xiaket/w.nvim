@@ -6,6 +6,7 @@ local fn = vim.fn
 local config = require("w.config")
 local layout = require("w.layout")
 local debug = require("w.debug") -- Import the debug module
+local ns_id = vim.api.nvim_create_namespace("explorer_highlight")
 
 -- Internal state
 ---@class ExplorerState
@@ -14,13 +15,40 @@ local debug = require("w.debug") -- Import the debug module
 ---@field buffer number? explorer buffer handle
 ---@field last_position number? last cursor position in current directory
 ---@field current_file string? path of current file being edited
+---@field ready boolean whether the explorer is ready
 local state = {
   current_dir = fn.getcwd(),
   window = nil,
   buffer = nil,
   last_position = nil,
   current_file = nil,
+  ready = false,
 }
+
+---Highlight current file in explorer if visible
+local function highlight_current_file()
+  if not state.buffer or not api.nvim_buf_is_valid(state.buffer) or not state.current_file then
+    return
+  end
+
+  -- Clear existing highlights
+  api.nvim_buf_clear_namespace(state.buffer, ns_id, 0, -1)
+
+  -- Get current file name
+  local current_name = fn.fnamemodify(state.current_file, ":t")
+  if current_name == "" then
+    return
+  end
+
+  -- Find and highlight the line
+  local lines = api.nvim_buf_get_lines(state.buffer, 0, -1, false)
+  for i, line in ipairs(lines) do
+    if line:match(" " .. vim.pesc(current_name) .. "$") then
+      api.nvim_buf_add_highlight(state.buffer, ns_id, "CursorLine", i - 1, 0, -1)
+      break
+    end
+  end
+end
 
 -- Forward declarations for functions used in keymaps
 local open_current, go_up
@@ -78,31 +106,6 @@ local function read_dir(path, ignore_max)
 
   debug.log("explorer", "found", #files, "files", is_truncated and "(truncated)" or "")
   return files, is_truncated
-end
-
----Highlight current file in explorer if visible
-local function highlight_current_file()
-  if not state.buffer or not api.nvim_buf_is_valid(state.buffer) or not state.current_file then
-    return
-  end
-
-  -- Clear existing highlights
-  api.nvim_buf_clear_namespace(state.buffer, 0, 0, -1)
-
-  -- Get current file name
-  local current_name = fn.fnamemodify(state.current_file, ":t")
-  if current_name == "" then
-    return
-  end
-
-  -- Find and highlight the line
-  local lines = api.nvim_buf_get_lines(state.buffer, 0, -1, false)
-  for i, line in ipairs(lines) do
-    if line:match(" " .. vim.pesc(current_name) .. "$") then
-      api.nvim_buf_add_highlight(state.buffer, 0, "CursorLine", i - 1, 0, -1)
-      break
-    end
-  end
 end
 
 ---Display files in buffer
@@ -215,12 +218,8 @@ local function ensure_buffer()
   end
 
   map(config.options.explorer_window_keymaps.close, M.toggle_explorer)
-  map(config.options.explorer_window_keymaps.go_up, function()
-    go_up()
-  end)
-  map(config.options.explorer_window_keymaps.open, function()
-    open_current()
-  end)
+  map(config.options.explorer_window_keymaps.go_up, go_up)
+  map(config.options.explorer_window_keymaps.open, open_current)
 
   state.buffer = buf
   debug.log("explorer", "created new buffer", debug.format_buf(buf))
@@ -234,29 +233,38 @@ local function create_window()
   debug.log("explorer", "creating window")
   debug.dump_buffers("explorer Before create_window")
 
+  state.ready = false
   local buf = ensure_buffer()
   if not buf then
     return nil
   end
 
-  -- Save current window
-  local current_win = api.nvim_get_current_win()
-
-  -- Create window at far left
-  vim.cmd("topleft vertical " .. config.options.explorer_window_width .. "vnew")
+  vim.cmd(
+    string.format("topleft vertical %dsplit | buffer %d", config.options.explorer_window_width, buf)
+  )
   local win = api.nvim_get_current_win()
+  debug.log(
+    "explorer",
+    string.format(
+      "After window creation - win: %d, buf: %d, width: %d, ft: %s",
+      win,
+      vim.api.nvim_win_get_buf(win),
+      vim.api.nvim_win_get_width(win),
+      vim.api.nvim_buf_get_option(vim.api.nvim_win_get_buf(win), "filetype")
+    )
+  )
+
+  -- Set our buffer
+  debug.log("explorer", "setting buffer", debug.format_win(win), buf)
+  -- TODO: remove the following line.
+  api.nvim_win_set_buf(win, buf)
+  state.ready = true
 
   -- Set window options
   api.nvim_win_set_option(win, "number", false)
   api.nvim_win_set_option(win, "relativenumber", false)
   api.nvim_win_set_option(win, "wrap", false)
   api.nvim_win_set_option(win, "winfixwidth", true)
-
-  -- Set our buffer
-  api.nvim_win_set_buf(win, buf)
-
-  -- Restore original window
-  api.nvim_set_current_win(current_win)
 
   state.window = win
   debug.log("explorer", "created window", debug.format_win(win))
@@ -354,12 +362,15 @@ open_current = function()
     -- Open file in target window
     api.nvim_set_current_win(target_win)
     debug.log("explorer", "switching to target window:", debug.format_win(target_win))
+    state.ready = false
     vim.cmd("edit " .. fn.fnameescape(path))
     state.current_file = path
 
     -- Return to explorer window and highlight current file
     api.nvim_set_current_win(state.window)
     highlight_current_file()
+    state.ready = true
+    api.nvim_set_current_win(target_win)
   end
 
   debug.dump_buffers("explorer After open_current")
@@ -446,6 +457,10 @@ function M.toggle_explorer()
   else
     M.open()
   end
+end
+
+function M.get_state()
+  return state
 end
 
 return M

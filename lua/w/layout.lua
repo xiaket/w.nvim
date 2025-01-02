@@ -292,11 +292,15 @@ end
 ---@param win_id number window ID to check
 ---@return boolean is explorer window
 local function is_explorer(win_id)
+  debug.log("layout", string.format("checking if win %d is explorer", win_id))
   if not win_id or not vim.api.nvim_win_is_valid(win_id) then
+    debug.log("layout", "invalid window")
     return false
   end
   local buf = vim.api.nvim_win_get_buf(win_id)
-  return vim.api.nvim_buf_get_option(buf, "filetype") == M.EXPLORER_WINDOW_FILETYPE
+  local ft = vim.api.nvim_buf_get_option(buf, "filetype")
+  debug.log("layout", string.format("window %d buffer %d filetype: %s", win_id, buf, ft))
+  return ft == M.EXPLORER_FILETYPE
 end
 
 --- Create new split in specified direction
@@ -362,11 +366,8 @@ function M.calculate_window_sizes()
   end
 
   local explorer_width = 0
-  if has_explorer then
+  if has_explorer and explorer_win ~= nil then
     explorer_width = config.options.explorer_window_width
-    -- Explorer window should be limited to not take too much space
-    explorer_width = math.min(explorer_width, math.floor(total_width * 0.3))
-    total_width = total_width - explorer_width
 
     -- Force explorer window size
     sizes[explorer_win] = {
@@ -382,36 +383,99 @@ function M.calculate_window_sizes()
   ---@param active_child_idx number|nil Index of child containing active window
   ---@return table Array of allocated sizes
   local function process_split_dimension(children, avail_space, active_child_idx)
+    debug.log(
+      "split_dimension",
+      string.format(
+        "Starting process_split_dimension with avail_space=%d, active_child_idx=%s",
+        avail_space,
+        active_child_idx or "nil"
+      )
+    )
+    debug.log("split_dimension", "Children:", vim.inspect(children))
+
     local used_space = 0
     local sizes = {}
 
-    if active_child_idx then
-      -- Has active window
-      local active_space = math.floor(avail_space * config.options.split_ratio)
-      local remaining_space = avail_space - active_space
-      local remaining_count = #children - 1
-
-      for i, _ in ipairs(children) do
-        if i == active_child_idx then
-          sizes[i] = active_space
-        elseif i == #children then
-          sizes[i] = avail_space - used_space
-        else
-          sizes[i] = math.floor(remaining_space / remaining_count)
-        end
+    local explorer_indices = {}
+    for i, child in ipairs(children) do
+      if child[1] == "leaf" and is_explorer(child[2]) then
+        sizes[i] = config.options.explorer_window_width
         used_space = used_space + sizes[i]
-      end
-    else
-      -- No active window, split evenly
-      for i, _ in ipairs(children) do
-        if i == #children then
-          sizes[i] = avail_space - used_space
-        else
-          sizes[i] = math.floor(avail_space / #children)
-        end
-        used_space = used_space + sizes[i]
+        explorer_indices[i] = true
+        debug.log(
+          "split_dimension",
+          string.format(
+            "Found explorer at index %d, width=%d, used_space=%d",
+            i,
+            sizes[i],
+            used_space
+          )
+        )
       end
     end
+
+    -- 第二步: 识别非explorer的active window
+    local active_non_explorer_idx
+    if active_child_idx and not explorer_indices[active_child_idx] then
+      active_non_explorer_idx = active_child_idx
+      debug.log(
+        "split_dimension",
+        string.format("Found non-explorer active window at index %d", active_non_explorer_idx)
+      )
+    end
+
+    -- 第三步: 计算剩余空间和非explorer窗口数
+    local remaining_space = avail_space - used_space
+    local non_explorer_count = 0
+    for i, _ in ipairs(children) do
+      if not explorer_indices[i] then
+        non_explorer_count = non_explorer_count + 1
+      end
+    end
+    debug.log(
+      "split_dimension",
+      string.format(
+        "After explorer allocation: remaining_space=%d, non_explorer_count=%d",
+        remaining_space,
+        non_explorer_count
+      )
+    )
+
+    if non_explorer_count > 0 then
+      if non_explorer_count == 2 then -- 只有两个非explorer窗口的情况
+        local split_ratio = config.options.split_ratio
+        local first_width = math.floor(remaining_space * (1 - split_ratio))
+        local second_width = remaining_space - first_width
+
+        local non_explorer_indices = {}
+        for i, child in ipairs(children) do
+          if not explorer_indices[i] then
+            table.insert(non_explorer_indices, i)
+          end
+        end
+
+        sizes[non_explorer_indices[1]] = first_width
+        sizes[non_explorer_indices[2]] = second_width
+
+        debug.log(
+          "split_dimension",
+          string.format(
+            "Allocated golden ratio windows: first=%d, second=%d",
+            first_width,
+            second_width
+          )
+        )
+      else
+        local window_width = math.floor(remaining_space / non_explorer_count)
+        for i, child in ipairs(children) do
+          if not explorer_indices[i] then
+            sizes[i] = window_width
+          end
+        end
+      end
+    end
+
+    debug.log("split_dimension", "Final sizes:", vim.inspect(sizes))
     return sizes
   end
 
@@ -596,6 +660,13 @@ end
 ---   - When a window gains focus, it should get 0.618 of the space in its containing split
 function M.redraw()
   debug.log("redraw called")
+
+  local explorer = require("w.explorer")
+  if not explorer.get_state().ready then
+    debug.log("redraw early exit - explorer not ready")
+    return
+  end
+
   local sizes = M.calculate_window_sizes()
   for win_id, size in pairs(sizes) do
     if vim.api.nvim_win_is_valid(win_id) then

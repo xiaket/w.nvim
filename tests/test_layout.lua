@@ -258,8 +258,107 @@ T["calculate_window_sizes"]["handles_explorer_window"] = function()
   ]])
 
   -- Explorer should have fixed width
-  local width_diff = math.abs(sizes.explorer_width - sizes.config_width)
-  assert_equal(width_diff <= 1, true)
+  assert_almost_equal(sizes.explorer_width, sizes.config_width)
+end
+
+-- Test explorer window handling
+T["calculate_window_sizes"]["handles_explorer_window_with_horizontal_split"] = function()
+  -- Create A|B split first
+  child.lua('w.layout.split("right")')
+  -- Open explorer window
+  child.lua("w.explorer.toggle_explorer()")
+
+  -- Get all window sizes
+  local data = child.lua([=[
+    local wins = vim.api.nvim_list_wins()
+    local explorer_win, other_wins = nil, {}
+    local debug = require("w.debug")
+    
+    -- Identify explorer and other windows
+    for _, win in ipairs(wins) do
+      local buf = vim.api.nvim_win_get_buf(win)
+      if vim.api.nvim_buf_get_option(buf, "filetype") == w.layout.EXPLORER_FILETYPE then
+        explorer_win = win
+      else
+        table.insert(other_wins, win)
+      end
+    end
+    
+    -- Get size data
+    local sizes = w.layout.calculate_window_sizes()
+    debug.log("sizes:", vim.inspect(sizes))
+    debug.log("explorer_win:", explorer_win)
+    return {
+      explorer_width = sizes[explorer_win].width,
+      config_width = w.config.options.explorer_window_width,
+      other_sizes = {
+        first = { width = sizes[other_wins[1]].width },
+        second = { width = sizes[other_wins[2]].width }
+      }
+    }
+  ]=])
+
+  -- Explorer should have fixed width
+  assert_almost_equal(data.explorer_width, data.config_width)
+
+  -- Other windows should split remaining space according to golden ratio
+  local total_width = data.other_sizes.first.width + data.other_sizes.second.width
+  local expected_second_width =
+    math.floor(total_width * child.lua_get("w.config.options.split_ratio"))
+  assert_almost_equal(data.other_sizes.second.width, expected_second_width)
+end
+
+T["calculate_window_sizes"]["handles_explorer_window_with_vertical_split"] = function()
+  -- Create A/B split first
+  child.lua('w.layout.split("down")')
+
+  -- Open explorer window
+  child.lua("w.explorer.toggle_explorer()")
+
+  -- Get all window sizes
+  local data = child.lua([=[
+    local wins = vim.api.nvim_list_wins()
+    local explorer_win, other_wins = nil, {}
+    
+    -- Identify explorer and other windows
+    for _, win in ipairs(wins) do
+      local buf = vim.api.nvim_win_get_buf(win)
+      if vim.api.nvim_buf_get_option(buf, "filetype") == w.layout.EXPLORER_FILETYPE then
+        explorer_win = win
+      else
+        table.insert(other_wins, win)
+      end
+    end
+    
+    -- Get size data
+    local sizes = w.layout.calculate_window_sizes()
+    return {
+      explorer_width = sizes[explorer_win].width,
+      config_width = w.config.options.explorer_window_width,
+      other_sizes = {
+        first = { 
+          width = sizes[other_wins[1]].width,
+          height = sizes[other_wins[1]].height 
+        },
+        second = { 
+          width = sizes[other_wins[2]].width,
+          height = sizes[other_wins[2]].height 
+        }
+      }
+    }
+  ]=])
+
+  -- Explorer should have fixed width
+  assert_almost_equal(data.explorer_width, data.config_width)
+
+  -- Other windows should keep the same width after explorer opens
+  assert_equal(data.other_sizes.first.width, data.other_sizes.second.width)
+
+  -- Verify vertical split still follows golden ratio
+  local total_height = data.other_sizes.first.height + data.other_sizes.second.height
+  local expected_second_height =
+    math.floor(total_height * child.lua_get("w.config.options.split_ratio"))
+  assert_almost_equal(data.other_sizes.second.height, expected_second_height)
 end
 
 return T
