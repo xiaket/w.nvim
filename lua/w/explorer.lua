@@ -253,11 +253,6 @@ local function create_window()
       vim.api.nvim_buf_get_option(vim.api.nvim_win_get_buf(win), "filetype")
     )
   )
-
-  -- Set our buffer
-  debug.log("explorer", "setting buffer", debug.format_win(win), buf)
-  -- TODO: remove the following line.
-  api.nvim_win_set_buf(win, buf)
   state.ready = true
 
   -- Set window options
