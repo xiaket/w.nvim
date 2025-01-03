@@ -394,20 +394,20 @@ function M.calculate_window_sizes()
     debug.log("split_dimension", "Children:", vim.inspect(children))
 
     local used_space = 0
-    local sizes = {}
+    local _sizes = {}
 
     local explorer_indices = {}
     for i, child in ipairs(children) do
       if child[1] == "leaf" and is_explorer(child[2]) then
-        sizes[i] = config.options.explorer.window_width
-        used_space = used_space + sizes[i]
+        _sizes[i] = config.options.explorer.window_width
+        used_space = used_space + _sizes[i]
         explorer_indices[i] = true
         debug.log(
           "split_dimension",
           string.format(
             "Found explorer at index %d, width=%d, used_space=%d",
             i,
-            sizes[i],
+            _sizes[i],
             used_space
           )
         )
@@ -448,14 +448,14 @@ function M.calculate_window_sizes()
         local second_width = remaining_space - first_width
 
         local non_explorer_indices = {}
-        for i, child in ipairs(children) do
+        for i, _ in ipairs(children) do
           if not explorer_indices[i] then
             table.insert(non_explorer_indices, i)
           end
         end
 
-        sizes[non_explorer_indices[1]] = first_width
-        sizes[non_explorer_indices[2]] = second_width
+        _sizes[non_explorer_indices[1]] = first_width
+        _sizes[non_explorer_indices[2]] = second_width
 
         debug.log(
           "split_dimension",
@@ -467,16 +467,16 @@ function M.calculate_window_sizes()
         )
       else
         local window_width = math.floor(remaining_space / non_explorer_count)
-        for i, child in ipairs(children) do
+        for i, _ in ipairs(children) do
           if not explorer_indices[i] then
-            sizes[i] = window_width
+            _sizes[i] = window_width
           end
         end
       end
     end
 
-    debug.log("split_dimension", "Final sizes:", vim.inspect(sizes))
-    return sizes
+    debug.log("split_dimension", "Final sizes:", vim.inspect(_sizes))
+    return _sizes
   end
 
   --- Process a window layout node recursively and calculate sizes for all windows
