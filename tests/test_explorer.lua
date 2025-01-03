@@ -26,6 +26,15 @@ local function ensure_clean_dir(dir)
   )
 end
 
+local get_key = function(path)
+  local keys = child.lua_get(path)
+  if type(keys) == "table" then
+    return keys[1]
+  else
+    return keys
+  end
+end
+
 local function create_test_dir()
   local test_dir = child.lua_get("vim.fn.tempname()")
 
@@ -103,7 +112,7 @@ T["toggle_explorer"]["should_create_and_close_explorer_window"] = function()
   ]])
 
   assert_equal(explorer_info ~= nil, true)
-  assert_almost_equal(explorer_info.width, child.lua_get("w.config.options.explorer_window_width"))
+  assert_almost_equal(explorer_info.width, child.lua_get("w.config.options.explorer.window_width"))
 
   -- Toggle explorer off
   child.lua([[w.explorer.close()]])
@@ -127,7 +136,7 @@ T["directory_reading"]["should_respect_show_hidden_setting"]["works"] = function
   -- Setup config with parametrized value
   child.lua(
     [[
-  w.config.setup({ show_hidden = select(1, ...) })
+  w.config.setup({ explorer = {show_hidden = select(1, ...) }})
   w.explorer.open(select(2, ...))
     ]],
     { show_hidden, test_dir }
@@ -160,7 +169,7 @@ T["directory_reading"]["should_respect_max_files_setting"] = function()
   -- Test with max_files = 100
   child.lua(
     [[
-    w.config.setup({ max_files = 3 })
+    w.config.setup({ explorer = {max_files = 3 }})
     w.explorer.open(...)
   ]],
     { test_dir }
@@ -206,7 +215,8 @@ T["navigation"]["should_navigate_directories"] = function()
     [[    vim.api.nvim_win_set_cursor(w.explorer.get_state().window, {...})]],
     { test_dir_line, 0 }
   )
-  child.type_keys(child.lua_get("w.config.options.explorer_window_keymaps.open"))
+
+  child.type_keys(get_key("w.config.options.explorer.keymaps.open"))
 
   -- Verify we can see nested_file.txt
   local has_nested = child.lua([[
@@ -222,7 +232,7 @@ T["navigation"]["should_navigate_directories"] = function()
   assert_equal(has_nested, true)
 
   -- Test going up
-  child.type_keys(child.lua_get("w.config.options.explorer_window_keymaps.go_up"))
+  child.type_keys(get_key("w.config.options.explorer.keymaps.go_up"))
 
   -- Verify we're back in root
   local has_test_dir = child.lua([[
@@ -260,7 +270,7 @@ T["navigation"]["should_open_files_in_appropriate_window"] = function()
   ]])
 
   child.lua([[vim.api.nvim_win_set_cursor(w.explorer.get_state().window, {...})]], { file_line, 0 })
-  child.type_keys(child.lua_get("w.config.options.explorer_window_keymaps.open"))
+  child.type_keys(child.lua_get("w.config.options.explorer.keymaps.open"))
 
   -- Verify file opened correctly
   local result = child.lua(

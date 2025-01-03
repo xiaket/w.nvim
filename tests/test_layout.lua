@@ -253,7 +253,7 @@ T["calculate_window_sizes"]["handles_explorer_window"] = function()
     local sizes = w.layout.calculate_window_sizes()
     return {
       explorer_width = sizes[current].width,
-      config_width = w.config.options.explorer_window_width
+      config_width = w.config.options.explorer.window_width
     }
   ]])
 
@@ -290,7 +290,7 @@ T["calculate_window_sizes"]["handles_explorer_window_with_horizontal_split"] = f
     debug.log("explorer_win:", explorer_win)
     return {
       explorer_width = sizes[explorer_win].width,
-      config_width = w.config.options.explorer_window_width,
+      config_width = w.config.options.explorer.window_width,
       other_sizes = {
         first = { width = sizes[other_wins[1]].width },
         second = { width = sizes[other_wins[2]].width }
@@ -334,7 +334,7 @@ T["calculate_window_sizes"]["handles_explorer_window_with_vertical_split"] = fun
     local sizes = w.layout.calculate_window_sizes()
     return {
       explorer_width = sizes[explorer_win].width,
-      config_width = w.config.options.explorer_window_width,
+      config_width = w.config.options.explorer.window_width,
       other_sizes = {
         first = { 
           width = sizes[other_wins[1]].width,

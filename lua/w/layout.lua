@@ -367,7 +367,7 @@ function M.calculate_window_sizes()
 
   local explorer_width = 0
   if has_explorer and explorer_win ~= nil then
-    explorer_width = config.options.explorer_window_width
+    explorer_width = config.options.explorer.window_width
 
     -- Force explorer window size
     sizes[explorer_win] = {
@@ -399,7 +399,7 @@ function M.calculate_window_sizes()
     local explorer_indices = {}
     for i, child in ipairs(children) do
       if child[1] == "leaf" and is_explorer(child[2]) then
-        sizes[i] = config.options.explorer_window_width
+        sizes[i] = config.options.explorer.window_width
         used_space = used_space + sizes[i]
         explorer_indices[i] = true
         debug.log(

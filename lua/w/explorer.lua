@@ -69,7 +69,7 @@ local function read_dir(path, ignore_max)
 
   local files = {}
   local handle = vim.loop.fs_scandir(path)
-  local max_files = config.options.max_files
+  local max_files = config.options.explorer.max_files
   local is_truncated = false
 
   while true do
@@ -79,7 +79,7 @@ local function read_dir(path, ignore_max)
     end
 
     -- Skip hidden files unless configured to show them
-    if config.options.show_hidden or not name:match("^%.") then
+    if config.options.explorer.show_hidden or not name:match("^%.") then
       table.insert(files, { name = name, type = type })
     end
 
@@ -209,17 +209,23 @@ local function ensure_buffer()
   api.nvim_buf_set_option(buf, "modifiable", false)
 
   -- Setup keymaps
-  local function map(key, callback)
-    api.nvim_buf_set_keymap(buf, "n", key, "", {
-      callback = callback,
-      noremap = true,
-      silent = true,
-    })
+  local function map(keys, callback)
+    if type(keys) == "string" then
+      keys = { keys }
+    end
+
+    for _, key in ipairs(keys) do
+      api.nvim_buf_set_keymap(buf, "n", key, "", {
+        callback = callback,
+        noremap = true,
+        silent = true,
+      })
+    end
   end
 
-  map(config.options.explorer_window_keymaps.close, M.toggle_explorer)
-  map(config.options.explorer_window_keymaps.go_up, go_up)
-  map(config.options.explorer_window_keymaps.open, open_current)
+  map(config.options.explorer.keymaps.close, M.toggle_explorer)
+  map(config.options.explorer.keymaps.go_up, go_up)
+  map(config.options.explorer.keymaps.open, open_current)
 
   state.buffer = buf
   debug.log("explorer", "created new buffer", debug.format_buf(buf))
@@ -240,7 +246,8 @@ local function create_window()
   end
 
   vim.cmd(
-    string.format("topleft vertical %dsplit | buffer %d", config.options.explorer_window_width, buf)
+    -- Run split then run buffer command.
+    string.format("topleft vertical %dsplit | buffer %d", config.options.explorer.window_width, buf)
   )
   local win = api.nvim_get_current_win()
   debug.log(
