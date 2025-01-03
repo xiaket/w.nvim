@@ -11,15 +11,10 @@ end
 
 -- Create pre-configured child process helper
 ---@param modules table|nil List of modules to load
----@param opts table|nil Configuration options for tests
 ---@return table child Child process object
 ---@return table hooks Pre-configured hooks
-H.new_child = function(modules, opts)
+H.new_child = function(modules)
   modules = modules or {}
-  opts = vim.tbl_deep_extend("force", {
-    debug = true, -- Enable debug by default in tests
-    debug_log = "/tmp/w-debug.log",
-  }, opts or {})
 
   local child = MiniTest.new_child_neovim()
 
@@ -33,22 +28,19 @@ H.new_child = function(modules, opts)
       end
 
       -- Setup base environment with custom debug settings
-      child.lua(
-        [[
+      child.lua([[
         -- Initialize base environment
         w = {}
         w.debug = require('w.debug')
         
         -- Configure debug settings from test options
-        w.debug.enabled = ...
-        w.debug.log_file_path = select(2, ...)
+        w.debug.enabled = true
+        w.debug.log_file_path = "/tmp/w-debug.log"
         
         -- Load and setup base configuration
         w.init = require('w.init')
         w.init.setup()
-      ]],
-        { opts.debug, opts.debug_log }
-      )
+      ]])
 
       -- Load requested modules
       for _, mod in ipairs(modules) do
