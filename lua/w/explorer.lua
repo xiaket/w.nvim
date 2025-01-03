@@ -15,14 +15,12 @@ local ns_id = vim.api.nvim_create_namespace("explorer_highlight")
 ---@field buffer number? explorer buffer handle
 ---@field last_position number? last cursor position in current directory
 ---@field current_file string? path of current file being edited
----@field ready boolean whether the explorer is ready
 local state = {
   current_dir = fn.getcwd(),
   window = nil,
   buffer = nil,
   last_position = nil,
   current_file = nil,
-  ready = false,
 }
 
 ---Highlight current file in explorer if visible
@@ -239,7 +237,6 @@ local function create_window()
   debug.log("explorer", "creating window")
   debug.dump_buffers("explorer Before create_window")
 
-  state.ready = false
   local buf = ensure_buffer()
   if not buf then
     return nil
@@ -260,7 +257,6 @@ local function create_window()
       vim.api.nvim_buf_get_option(vim.api.nvim_win_get_buf(win), "filetype")
     )
   )
-  state.ready = true
 
   -- Set window options
   api.nvim_win_set_option(win, "number", false)
@@ -364,14 +360,12 @@ open_current = function()
     -- Open file in target window
     api.nvim_set_current_win(target_win)
     debug.log("explorer", "switching to target window:", debug.format_win(target_win))
-    state.ready = false
     vim.cmd("edit " .. fn.fnameescape(path))
     state.current_file = path
 
     -- Return to explorer window and highlight current file
     api.nvim_set_current_win(state.window)
     highlight_current_file()
-    state.ready = true
     api.nvim_set_current_win(target_win)
   end
 

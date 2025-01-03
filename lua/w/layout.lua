@@ -661,12 +661,6 @@ end
 function M.redraw()
   debug.log("redraw called")
 
-  local explorer = require("w.explorer")
-  if not explorer.get_state().ready then
-    debug.log("redraw early exit - explorer not ready")
-    return
-  end
-
   local sizes = M.calculate_window_sizes()
   for win_id, size in pairs(sizes) do
     if vim.api.nvim_win_is_valid(win_id) then
