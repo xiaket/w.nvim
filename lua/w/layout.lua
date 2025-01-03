@@ -607,8 +607,7 @@ end
 ---      will land in B, and :WSplitDown will create new vertical splits.
 ---    b. If we were in C then switched focus to A, running :WSplitRight in A will land in C.
 function M.split(direction)
-  debug.log("Start new run.", string.rep("=", 80))
-  debug.log("split called with direction:", direction)
+  debug.log(string.rep("=", 40), "split called with direction:", direction, string.rep("=", 40))
   local current = vim.api.nvim_get_current_win()
   debug.log("current window:", debug.format_win(current))
 
@@ -641,7 +640,7 @@ function M.split(direction)
 
   create_split(direction)
   debug.log("current window:", debug.format_win(vim.api.nvim_get_current_win()))
-  debug.log("End of run.", string.rep("=", 80))
+  debug.log(string.rep("=", 40), "Finished split.", string.rep("=", 40))
 end
 
 ---Redraw all windows according to golden ratio
