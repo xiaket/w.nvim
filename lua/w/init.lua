@@ -28,7 +28,7 @@ local function create_autocommands()
   local group = vim.api.nvim_create_augroup("W", { clear = true })
 
   -- Handle window resize
-  vim.api.nvim_create_autocmd({ "WinEnter", "VimResized" }, {
+  vim.api.nvim_create_autocmd({ "BufWinEnter", "VimResized", "WinClosed" }, {
     group = group,
     callback = function()
       require("w.layout").redraw()

@@ -387,15 +387,13 @@ function M.close()
   end
 
   -- Save position before closing
+  -- TODO: do we want to update it when user move the cursor?
   state.last_position = api.nvim_win_get_cursor(state.window)[1]
 
   -- Close window
   api.nvim_win_close(state.window, false)
   state.window = nil
   debug.log("explorer", "closed window, saved position:", state.last_position)
-
-  -- Trigger layout redraw
-  layout.redraw()
 end
 
 ---Open explorer window
@@ -447,9 +445,6 @@ function M.open(dir)
     state.current_file = current_name
     highlight_current_file()
   end
-
-  -- Trigger layout redraw
-  layout.redraw()
 end
 
 ---Toggle explorer window
