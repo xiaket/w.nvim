@@ -105,7 +105,7 @@ T["toggle_explorer"]["should_create_and_close_explorer_window"] = function()
 
   -- Verify explorer window properties
   local explorer_info = child.lua([[
-    local win = w.explorer.get_state().window
+    local win = w.explorer.get_window()
     return win and {
       width = vim.api.nvim_win_get_width(win)
     }
@@ -144,7 +144,7 @@ T["directory_reading"]["should_respect_show_hidden_setting"]["works"] = function
 
   -- Check results
   local results = child.lua([[
-    local buf = w.explorer.get_state().buffer
+    local buf = w.explorer.get_buffer()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     local has_hidden, has_normal, has_dir = false, false, false
     for _, line in ipairs(lines) do
@@ -176,7 +176,7 @@ T["directory_reading"]["should_respect_max_files_setting"] = function()
   )
 
   local file_info = child.lua([[
-    local buf = w.explorer.get_state().buffer
+    local buf = w.explorer.get_buffer()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     return {
       truncation_message = lines[#lines] == "['j' to load more]",
@@ -200,7 +200,7 @@ T["navigation"]["should_navigate_directories"] = function()
 
   -- Find and enter test_dir
   local test_dir_line = child.lua([[
-    local buf = w.explorer.get_state().buffer
+    local buf = w.explorer.get_buffer()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     for i, line in ipairs(lines) do
       if line:match("test_dir$") then
@@ -212,7 +212,7 @@ T["navigation"]["should_navigate_directories"] = function()
 
   -- Navigate to test_dir and open it
   child.lua(
-    [[    vim.api.nvim_win_set_cursor(w.explorer.get_state().window, {...})]],
+    [[    vim.api.nvim_win_set_cursor(w.explorer.get_window(), {...})]],
     { test_dir_line, 0 }
   )
 
@@ -220,7 +220,7 @@ T["navigation"]["should_navigate_directories"] = function()
 
   -- Verify we can see nested_file.txt
   local has_nested = child.lua([[
-    local buf = w.explorer.get_state().buffer
+    local buf = w.explorer.get_buffer()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     for _, line in ipairs(lines) do
       if line:match("nested_file.txt$") then
@@ -236,7 +236,7 @@ T["navigation"]["should_navigate_directories"] = function()
 
   -- Verify we're back in root
   local has_test_dir = child.lua([[
-    local buf = w.explorer.get_state().buffer
+    local buf = w.explorer.get_buffer()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     for _, line in ipairs(lines) do
       if line:match("test_dir$") then
@@ -260,7 +260,7 @@ T["navigation"]["should_open_files_in_appropriate_window"] = function()
 
   -- Find and open file1.txt
   local file_line = child.lua([[
-    local buf = w.explorer.get_state().buffer
+    local buf = w.explorer.get_buffer()
     local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     for i, line in ipairs(lines) do
       if line:match("file1.txt$") then
@@ -269,7 +269,7 @@ T["navigation"]["should_open_files_in_appropriate_window"] = function()
     end
   ]])
 
-  child.lua([[vim.api.nvim_win_set_cursor(w.explorer.get_state().window, {...})]], { file_line, 0 })
+  child.lua([[vim.api.nvim_win_set_cursor(w.explorer.get_window(), {...})]], { file_line, 0 })
   child.type_keys(child.lua_get("w.config.options.explorer.keymaps.open"))
 
   -- Verify file opened correctly
@@ -304,7 +304,7 @@ T["highlighting"]["should_highlight_current_file"] = function()
   child.lua(
     [[
     vim.cmd("edit " .. ...)
-    w.explorer.get_state().current_file = ...
+    w.explorer.set_current_file(...)
     w.explorer.open(vim.fn.fnamemodify(..., ":h"))
   ]],
     { file_path }
@@ -312,7 +312,7 @@ T["highlighting"]["should_highlight_current_file"] = function()
 
   -- Check highlighting
   local has_highlight = child.lua([[
-    local buf = w.explorer.get_state().buffer
+    local buf = w.explorer.get_buffer()
     local ns = vim.api.nvim_create_namespace('explorer_highlight')
     
     local extmarks = vim.api.nvim_buf_get_extmarks(

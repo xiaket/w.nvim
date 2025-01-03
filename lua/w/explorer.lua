@@ -10,39 +10,127 @@ local ns_id = vim.api.nvim_create_namespace("explorer_highlight")
 
 -- Internal state
 ---@class ExplorerState
----@field current_dir string current directory being displayed
----@field window number? explorer window handle
----@field buffer number? explorer buffer handle
----@field last_position number? last cursor position in current directory
----@field current_file string? path of current file being edited
-local state = {
-  current_dir = fn.getcwd(),
-  window = nil,
-  buffer = nil,
-  last_position = nil,
-  current_file = nil,
+---@field _current_dir string current directory being displayed
+---@field _window number|nil explorer window handle
+---@field _buffer number|nil explorer buffer handle
+---@field _last_position number|nil last cursor position in current directory
+---@field _current_file string|nil path of current file being edited
+local _state = {
+  _current_dir = vim.fn.getcwd(),
+  _window = nil,
+  _buffer = nil,
+  _last_position = nil,
+  _current_file = nil,
 }
+
+-- State access methods
+---@return number|nil window handle if explorer window exists and is valid
+function M.get_window()
+  if _state._window and vim.api.nvim_win_is_valid(_state._window) then
+    return _state._window
+  end
+  return nil
+end
+
+---@return number|nil buffer handle if explorer buffer exists and is valid
+function M.get_buffer()
+  if _state._buffer and vim.api.nvim_buf_is_valid(_state._buffer) then
+    return _state._buffer
+  end
+  return nil
+end
+
+function M.get_last_position()
+  return _state._last_position
+end
+
+---@return string
+function M.get_current_dir()
+  return _state._current_dir
+end
+
+---@return string|nil
+function M.get_current_file()
+  if not _state._current_file then
+    return nil
+  end
+  return _state._current_file
+end
+
+-- State modification helpers
+---@private
+---@param win number|nil
+local function set_window(win)
+  if win and not vim.api.nvim_win_is_valid(win) then
+    return
+  end
+  _state._window = win
+end
+
+---@private
+---@param buf number|nil
+local function set_buffer(buf)
+  if buf and not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  _state._buffer = buf
+end
+
+---@private
+---@param dir string
+local function set_current_dir(dir)
+  local stat = vim.loop.fs_stat(dir)
+  if not stat or stat.type ~= "directory" then
+    error(string.format("Invalid directory: %s", dir))
+  end
+  _state._current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
+end
+
+---@private
+---@param pos number|nil
+local function set_last_position(pos)
+  if pos and (type(pos) ~= "number" or pos < 1) then
+    return
+  end
+  _state._last_position = pos
+end
+
+---@private
+---@param file string|nil
+function M.set_current_file(file)
+  if not file then
+    _state._current_file = nil
+  else
+    local stat = vim.loop.fs_stat(file)
+    if not stat or stat.type ~= "file" then
+      return
+    end
+    _state._current_file = vim.fn.fnamemodify(file, ":p")
+  end
+end
 
 ---Highlight current file in explorer if visible
 local function highlight_current_file()
-  if not state.buffer or not api.nvim_buf_is_valid(state.buffer) or not state.current_file then
+  local buf = M.get_buffer()
+  local current_file = M.get_current_file()
+  if not buf or not current_file then
     return
   end
 
   -- Clear existing highlights
-  api.nvim_buf_clear_namespace(state.buffer, ns_id, 0, -1)
+  api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
 
   -- Get current file name
-  local current_name = fn.fnamemodify(state.current_file, ":t")
+  local current_name = fn.fnamemodify(current_file, ":t")
   if current_name == "" then
     return
   end
 
   -- Find and highlight the line
-  local lines = api.nvim_buf_get_lines(state.buffer, 0, -1, false)
+  local lines = api.nvim_buf_get_lines(buf, 0, -1, false)
   for i, line in ipairs(lines) do
     if line:match(" " .. vim.pesc(current_name) .. "$") then
-      api.nvim_buf_add_highlight(state.buffer, ns_id, "CursorLine", i - 1, 0, -1)
+      api.nvim_buf_add_highlight(buf, ns_id, "CursorLine", i - 1, 0, -1)
       break
     end
   end
@@ -113,7 +201,9 @@ local function display_files(files, is_truncated)
   debug.log("explorer", "displaying", #files, "files", is_truncated and "(truncated)" or "")
   debug.dump_buffers("explorer Before display_files")
 
-  if not state.buffer or not api.nvim_buf_is_valid(state.buffer) then
+  local buf = M.get_buffer()
+  local win = M.get_window()
+  if not buf then
     debug.log("explorer", "invalid buffer")
     return
   end
