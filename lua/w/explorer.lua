@@ -2,11 +2,9 @@ local M = {}
 
 -- Dependencies
 local api = vim.api
-local fn = vim.fn
 local config = require("w.config")
 local layout = require("w.layout")
-local debug = require("w.debug") -- Import the debug module
-local ns_id = vim.api.nvim_create_namespace("explorer_highlight")
+local debug = require("w.debug")
 
 -- Internal state
 ---@class ExplorerState
@@ -14,13 +12,11 @@ local ns_id = vim.api.nvim_create_namespace("explorer_highlight")
 ---@field _window number|nil explorer window handle
 ---@field _buffer number|nil explorer buffer handle
 ---@field _last_position number|nil last cursor position in current directory
----@field _current_file string|nil path of current file being edited
 local _state = {
   _current_dir = vim.fn.getcwd(),
   _window = nil,
   _buffer = nil,
   _last_position = nil,
-  _current_file = nil,
 }
 
 -- State access methods
@@ -47,14 +43,6 @@ end
 ---@return string
 function M.get_current_dir()
   return _state._current_dir
-end
-
----@return string|nil
-function M.get_current_file()
-  if not _state._current_file then
-    return nil
-  end
-  return _state._current_file
 end
 
 -- State modification helpers
@@ -95,42 +83,25 @@ local function set_last_position(pos)
   _state._last_position = pos
 end
 
----@private
----@param file string|nil
-function M.set_current_file(file)
-  if not file then
-    _state._current_file = nil
-  else
-    local stat = vim.loop.fs_stat(file)
-    if not stat or stat.type ~= "file" then
-      return
-    end
-    _state._current_file = vim.fn.fnamemodify(file, ":p")
-  end
-end
-
----Highlight current file in explorer if visible
 local function highlight_current_file()
+  local ns_id = vim.api.nvim_create_namespace("w_explorer_highlight")
   local buf = M.get_buffer()
-  local current_file = M.get_current_file()
-  if not buf or not current_file then
+  debug.log("explorer", "highlight_current_file - start", buf, ns_id)
+
+  if not buf then
+    debug.log("explorer", "highlight_current_file - no buffer")
     return
   end
 
-  -- Clear existing highlights
-  api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
-
-  -- Get current file name
-  local current_name = fn.fnamemodify(current_file, ":t")
-  if current_name == "" then
+  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+  local current = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":t")
+  if current == "" then
     return
   end
-
-  -- Find and highlight the line
-  local lines = api.nvim_buf_get_lines(buf, 0, -1, false)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   for i, line in ipairs(lines) do
-    if line:match(" " .. vim.pesc(current_name) .. "$") then
-      api.nvim_buf_add_highlight(buf, ns_id, "CursorLine", i - 1, 0, -1)
+    if line:match(current .. "$") then
+      vim.api.nvim_buf_add_highlight(buf, ns_id, "CursorLine", i - 1, 0, -1)
       break
     end
   end
@@ -247,9 +218,6 @@ local function display_files(files, is_truncated)
     silent = true,
   })
 
-  -- Highlight current file
-  highlight_current_file()
-
   debug.dump_state("explorer after display_files")
 end
 
@@ -316,6 +284,12 @@ local function ensure_buffer()
 
   set_buffer(new_buf)
   track_cursor(new_buf)
+
+  local group = vim.api.nvim_create_augroup("WExplorerHighlight", { clear = true })
+  vim.api.nvim_create_autocmd({ "BufEnter" }, {
+    group = group,
+    callback = highlight_current_file,
+  })
   debug.dump_state("explorer exit ensure_buffer")
 end
 
@@ -376,7 +350,7 @@ go_up = function()
   local current_dir = M.get_current_dir()
   debug.dump_state("explorer enter go_up")
 
-  local parent = fn.fnamemodify(current_dir, ":h")
+  local parent = vim.fn.fnamemodify(current_dir, ":h")
 
   if parent == current_dir then
     debug.log("explorer", "already at root")
@@ -407,7 +381,7 @@ open_current = function()
 
   -- Construct full path
   local current_dir = M.get_current_dir()
-  local path = fn.fnamemodify(current_dir .. "/" .. name, ":p")
+  local path = vim.fn.fnamemodify(current_dir .. "/" .. name, ":p")
   local stat = vim.loop.fs_stat(path)
   if not stat then
     debug.log("explorer", "could not stat path:", path)
@@ -451,10 +425,7 @@ open_current = function()
     -- Open file in target window
     api.nvim_set_current_win(target_win)
     debug.log("explorer", "switching to target window:", target_win)
-    vim.cmd("edit " .. fn.fnameescape(path))
-    M.set_current_file(path)
-
-    highlight_current_file()
+    vim.cmd("edit " .. vim.fn.fnameescape(path))
   end
 
   debug.dump_state("explorer exit open_current")
@@ -519,14 +490,6 @@ function M.open(dir)
   if last_position then
     vim.fn.cursor(last_position, 0)
     debug.log("explorer", "restored cursor position", last_position)
-  end
-
-  -- Store current file path if any
-  local current_buf = api.nvim_get_current_buf()
-  local current_name = api.nvim_buf_get_name(current_buf)
-  if current_name ~= "" then
-    M.set_current_file(current_name)
-    highlight_current_file()
   end
   debug.dump_state("explorer exit open")
 end

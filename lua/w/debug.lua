@@ -151,13 +151,11 @@ function M.dump_state(prefix)
     local explorer = package.loaded["w.explorer"]
     local win = explorer.get_window()
     local buf = explorer.get_buffer()
-    local current_file = explorer.get_current_file()
     local last_position = explorer.get_last_position()
     M.log(prefix, string.format("  Explorer state:"))
     M.log(prefix, string.format("    Current dir: %s", explorer.get_current_dir() or "nil"))
     M.log(prefix, string.format("    Window: %s", win and format_win(win) or "nil"))
     M.log(prefix, string.format("    Buffer: %s", buf and format_buf(buf) or "nil"))
-    M.log(prefix, string.format("    Current file: %s", current_file or "nil"))
     M.log(prefix, string.format("    Last position: %s", last_position or "nil"))
   end
 end

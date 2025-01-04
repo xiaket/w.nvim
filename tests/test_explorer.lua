@@ -301,19 +301,14 @@ T["highlighting"]["should_highlight_current_file"] = function()
   local test_dir = create_test_dir()
   local file_path = test_dir .. "/file1.txt"
 
-  child.lua(
-    [[
-    vim.cmd("edit " .. ...)
-    w.explorer.set_current_file(...)
-    w.explorer.open(vim.fn.fnamemodify(..., ":h"))
-  ]],
-    { file_path }
-  )
+  child.lua([[w.explorer.open(vim.fn.fnamemodify(..., ":h"))]], { file_path })
+  child.cmd("wincmd l")
+  child.cmd("edit " .. file_path)
 
   -- Check highlighting
   local has_highlight = child.lua([[
     local buf = w.explorer.get_buffer()
-    local ns = vim.api.nvim_create_namespace('explorer_highlight')
+    local ns = vim.api.nvim_create_namespace('w_explorer_highlight')
     
     local extmarks = vim.api.nvim_buf_get_extmarks(
       buf,
@@ -322,7 +317,7 @@ T["highlighting"]["should_highlight_current_file"] = function()
       { -1, -1 },
       { details = true }
     )
-    
+
     for _, mark in ipairs(extmarks) do
       if mark[4].hl_group == "CursorLine" then
         return true
