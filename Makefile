@@ -2,6 +2,8 @@ GROUP_DEPTH ?= 1
 NVIM_EXEC ?= nvim
 
 all: test
+# This next line makes all commands silent unless a "DEBUG" variable is defined when running (e.g. DEBUG=1 make test)
+$(DEBUG).SILENT:
 
 test:
 	$(NVIM_EXEC) --version | head -n 1 && echo ''
