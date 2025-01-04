@@ -337,13 +337,14 @@ end
 function M.calculate_window_sizes()
   local total_width = vim.o.columns
   local total_height = vim.o.lines
-  local tree = vim.fn.winlayout()
+  local original_tree = vim.fn.winlayout()
   local active_win = vim.api.nvim_get_current_win()
   local sizes = {}
+
   debug.log(
     "calculate_window_sizes called with",
     "tree:",
-    vim.inspect(tree),
+    vim.inspect(original_tree),
     "total_width:",
     total_width,
     "total_height:",
@@ -352,195 +353,141 @@ function M.calculate_window_sizes()
     active_win
   )
 
-  -- First handle explorer if exists
-  local has_explorer = false
+  -- Phase 1: Extract explorer and calculate available width
   local explorer_win = nil
-  for _, win_id in ipairs(vim.api.nvim_list_wins()) do
-    if is_explorer(win_id) then
-      has_explorer = true
-      explorer_win = win_id
-      break
+  local available_width = total_width
+
+  -- Find explorer window and remove it from tree
+  local function clean_tree(node)
+    if node[1] == "leaf" then
+      if is_explorer(node[2]) then
+        explorer_win = node[2]
+        return nil
+      end
+      return node
+    end
+
+    local new_children = {}
+    for _, child in ipairs(node[2]) do
+      local clean_child = clean_tree(child)
+      if clean_child then
+        table.insert(new_children, clean_child)
+      end
+    end
+
+    if #new_children == 0 then
+      return nil
+    elseif #new_children == 1 and node[1] == "row" then
+      -- Collapse single-child row
+      return new_children[1]
+    else
+      node[2] = new_children
+      return node
     end
   end
 
-  local explorer_width = 0
-  if has_explorer and explorer_win ~= nil then
-    explorer_width = config.options.explorer.window_width
+  local clean_layout = clean_tree(vim.deepcopy(original_tree))
+  debug.log("clean_layout:", vim.inspect(clean_layout))
 
-    -- Force explorer window size
+  -- Set explorer size if found
+  if explorer_win then
     sizes[explorer_win] = {
-      width = explorer_width,
+      width = config.options.explorer.window_width,
       height = total_height,
     }
-  end
-  debug.log("has_explorer:", has_explorer, "total_width:", total_width)
-
-  --- Divide space among children, giving active child golden ratio if exists
-  ---@param children table Array of child nodes
-  ---@param avail_space number Total available space
-  ---@param active_child_idx number|nil Index of child containing active window
-  ---@return table Array of allocated sizes
-  local function process_split_dimension(children, avail_space, active_child_idx)
-    debug.log(
-      "split_dimension",
-      string.format(
-        "Starting process_split_dimension with avail_space=%d, active_child_idx=%s",
-        avail_space,
-        active_child_idx or "nil"
-      )
-    )
-    debug.log("split_dimension", "Children:", vim.inspect(children))
-
-    local used_space = 0
-    local _sizes = {}
-
-    local explorer_indices = {}
-    for i, child in ipairs(children) do
-      if child[1] == "leaf" and is_explorer(child[2]) then
-        _sizes[i] = config.options.explorer.window_width
-        used_space = used_space + _sizes[i]
-        explorer_indices[i] = true
-        debug.log(
-          "split_dimension",
-          string.format(
-            "Found explorer at index %d, width=%d, used_space=%d",
-            i,
-            _sizes[i],
-            used_space
-          )
-        )
-      end
-    end
-
-    -- 第二步: 识别非explorer的active window
-    local active_non_explorer_idx
-    if active_child_idx and not explorer_indices[active_child_idx] then
-      active_non_explorer_idx = active_child_idx
-      debug.log(
-        "split_dimension",
-        string.format("Found non-explorer active window at index %d", active_non_explorer_idx)
-      )
-    end
-
-    -- 第三步: 计算剩余空间和非explorer窗口数
-    local remaining_space = avail_space - used_space
-    local non_explorer_count = 0
-    for i, _ in ipairs(children) do
-      if not explorer_indices[i] then
-        non_explorer_count = non_explorer_count + 1
-      end
-    end
-    debug.log(
-      "split_dimension",
-      string.format(
-        "After explorer allocation: remaining_space=%d, non_explorer_count=%d",
-        remaining_space,
-        non_explorer_count
-      )
-    )
-
-    if non_explorer_count > 0 then
-      if non_explorer_count == 2 then -- 只有两个非explorer窗口的情况
-        local split_ratio = config.options.split_ratio
-        local first_width = math.floor(remaining_space * (1 - split_ratio))
-        local second_width = remaining_space - first_width
-
-        local non_explorer_indices = {}
-        for i, _ in ipairs(children) do
-          if not explorer_indices[i] then
-            table.insert(non_explorer_indices, i)
-          end
-        end
-
-        _sizes[non_explorer_indices[1]] = first_width
-        _sizes[non_explorer_indices[2]] = second_width
-
-        debug.log(
-          "split_dimension",
-          string.format(
-            "Allocated golden ratio windows: first=%d, second=%d",
-            first_width,
-            second_width
-          )
-        )
-      else
-        local window_width = math.floor(remaining_space / non_explorer_count)
-        for i, _ in ipairs(children) do
-          if not explorer_indices[i] then
-            _sizes[i] = window_width
-          end
-        end
-      end
-    end
-
-    debug.log("split_dimension", "Final sizes:", vim.inspect(_sizes))
-    return _sizes
+    available_width = total_width - config.options.explorer.window_width
   end
 
-  --- Process a window layout node recursively and calculate sizes for all windows
-  ---@param node table Layout tree node from vim.fn.winlayout()
-  ---      node[1] is type: "row", "col", or "leaf"
-  ---      node[2] is content: array of child nodes or window id for leaf
-  ---@param avail_width number Available width for this subtree
-  ---@param avail_height number Available height for this subtree
-  ---@return number wins_count Total number of windows in this subtree
-  ---@return boolean has_active Whether this subtree contains active window
-  local function process_node(node, avail_width, avail_height)
-    debug.log(
-      "Processing node:",
-      vim.inspect(node),
-      "avail_width:",
-      avail_width,
-      "avail_height:",
-      avail_height
-    )
+  debug.log(
+    "After preprocessing:",
+    "explorer_win:",
+    explorer_win and explorer_win or "nil",
+    "available_width:",
+    available_width
+  )
 
+  -- Phase 2: Calculate sizes for remaining windows
+
+  -- Check if node contains active window
+  local function contains_active(node)
     if node[1] == "leaf" then
-      local win_id = node[2]
-      -- Skip if this is explorer window as its size is already set
-      if not is_explorer(win_id) then
-        sizes[win_id] = {
-          width = avail_width,
-          height = avail_height,
-        }
-      end
-      return 1, (win_id == active_win)
+      return node[2] == active_win
     end
-
-    -- Find active child
-    local active_child_idx = nil
-    for i, child in ipairs(node[2]) do
-      local _, has_active = process_node(child, 0, 0)
-      if has_active then
-        active_child_idx = i
-        break
+    for _, child in ipairs(node[2]) do
+      if contains_active(child) then
+        return true
       end
     end
-
-    -- Calculate child sizes
-    local child_sizes = process_split_dimension(
-      node[2],
-      node[1] == "row" and avail_width or avail_height,
-      active_child_idx
-    )
-
-    -- Process children with calculated sizes
-    local total_wins, has_active = 0, false
-    for i, child in ipairs(node[2]) do
-      local child_wins, child_active = process_node(
-        child,
-        node[1] == "row" and child_sizes[i] or avail_width,
-        node[1] == "row" and avail_height or child_sizes[i]
-      )
-      total_wins = total_wins + child_wins
-      has_active = has_active or child_active
-    end
-
-    return total_wins, has_active
+    return false
   end
 
-  process_node(tree, total_width, total_height)
-  debug.log("calculate_window_sizes:", vim.inspect(sizes))
+  -- Process layout tree with available width
+  local function process_node(node, avail_width, avail_height)
+    if node[1] == "leaf" then
+      sizes[node[2]] = {
+        width = avail_width,
+        height = avail_height,
+      }
+      return
+    end
+
+    local children = node[2]
+    if node[1] == "row" then
+      if #children == 2 then
+        -- For two windows, active one should get ratio (larger) portion
+        local ratio = config.options.split_ratio
+        local larger_width = math.floor(avail_width * ratio) -- 0.618
+        local smaller_width = avail_width - larger_width -- 0.382
+
+        -- Determine which window gets the larger portion
+        if contains_active(children[1]) then
+          process_node(children[1], larger_width, avail_height)
+          process_node(children[2], smaller_width, avail_height)
+        else
+          process_node(children[1], smaller_width, avail_height)
+          process_node(children[2], larger_width, avail_height)
+        end
+      else
+        -- Equal distribution for more than two windows
+        local child_width = math.floor(avail_width / #children)
+        for i, child in ipairs(children) do
+          local width = i == #children and (avail_width - child_width * (#children - 1))
+            or child_width
+          process_node(child, width, avail_height)
+        end
+      end
+    else -- col
+      if #children == 2 then
+        -- For two windows, active one should get ratio (larger) portion
+        local ratio = config.options.split_ratio
+        local larger_height = math.floor(avail_height * ratio) -- 0.618
+        local smaller_height = avail_height - larger_height -- 0.382
+
+        -- Determine which window gets the larger portion
+        if contains_active(children[1]) then
+          process_node(children[1], avail_width, larger_height)
+          process_node(children[2], avail_width, smaller_height)
+        else
+          process_node(children[1], avail_width, smaller_height)
+          process_node(children[2], avail_width, larger_height)
+        end
+      else
+        -- Equal height distribution
+        local child_height = math.floor(avail_height / #children)
+        for i, child in ipairs(children) do
+          local height = i == #children and (avail_height - child_height * (#children - 1))
+            or child_height
+          process_node(child, avail_width, height)
+        end
+      end
+    end
+  end
+
+  if clean_layout then
+    process_node(clean_layout, available_width, total_height)
+  end
+
+  debug.log("calculate_window_sizes final:", vim.inspect(sizes))
   return sizes
 end
 

@@ -85,7 +85,6 @@ function M.create_window()
   vim.api.nvim_win_set_option(win, "number", false)
   vim.api.nvim_win_set_option(win, "relativenumber", false)
   vim.api.nvim_win_set_option(win, "wrap", true)
-  -- TODO: maybe we can simplify window size calculation using this flag.
   vim.api.nvim_win_set_option(win, "winfixwidth", true)
 
   state.set_window(win)
