@@ -609,7 +609,7 @@ end
 function M.split(direction)
   debug.log(string.rep("=", 40), "split called with direction:", direction, string.rep("=", 40))
   local current = vim.api.nvim_get_current_win()
-  debug.log("current window:", debug.format_win(current))
+  debug.log("current window:", current)
 
   -- Only allow right split for explorer windows
   if is_explorer(current) then
@@ -622,9 +622,9 @@ function M.split(direction)
   -- Try to find existing window to focus
   local target_win = find_target_window(current, direction)
   if target_win then
-    debug.log("found target window", debug.format_win(target_win))
+    debug.log("found target window", target_win)
     vim.api.nvim_set_current_win(target_win)
-    debug.log("current window:", debug.format_win(vim.api.nvim_get_current_win()))
+    debug.log("current window:", vim.api.nvim_get_current_win())
     debug.log("End of run.", string.rep("=", 80))
     return
   end
@@ -633,13 +633,13 @@ function M.split(direction)
   -- Check if new split is allowed
   if not can_split(current, direction) then
     debug.log("Cannot create new split in this direction")
-    debug.log("current window:", debug.format_win(vim.api.nvim_get_current_win()))
+    debug.log("current window:", vim.api.nvim_get_current_win())
     debug.log("End of run.", string.rep("=", 80))
     return
   end
 
   create_split(direction)
-  debug.log("current window:", debug.format_win(vim.api.nvim_get_current_win()))
+  debug.log("current window:", vim.api.nvim_get_current_win())
   debug.log(string.rep("=", 40), "Finished split.", string.rep("=", 40))
 end
 
