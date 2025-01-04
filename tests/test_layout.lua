@@ -272,12 +272,11 @@ T["calculate_window_sizes"]["handles_explorer_window_with_horizontal_split"] = f
   local data = child.lua([=[
     local wins = vim.api.nvim_list_wins()
     local explorer_win, other_wins = nil, {}
-    local debug = require("w.debug")
     
     -- Identify explorer and other windows
     for _, win in ipairs(wins) do
       local buf = vim.api.nvim_win_get_buf(win)
-      if vim.api.nvim_buf_get_option(buf, "filetype") == w.layout.EXPLORER_FILETYPE then
+      if vim.api.nvim_buf_get_option(buf, "filetype") == w.config.const.filetype then
         explorer_win = win
       else
         table.insert(other_wins, win)
@@ -286,8 +285,6 @@ T["calculate_window_sizes"]["handles_explorer_window_with_horizontal_split"] = f
     
     -- Get size data
     local sizes = w.layout.calculate_window_sizes()
-    debug.log("sizes:", vim.inspect(sizes))
-    debug.log("explorer_win:", explorer_win)
     return {
       explorer_width = sizes[explorer_win].width,
       config_width = w.config.options.explorer.window_width,
@@ -323,7 +320,7 @@ T["calculate_window_sizes"]["handles_explorer_window_with_vertical_split"] = fun
     -- Identify explorer and other windows
     for _, win in ipairs(wins) do
       local buf = vim.api.nvim_win_get_buf(win)
-      if vim.api.nvim_buf_get_option(buf, "filetype") == w.layout.EXPLORER_FILETYPE then
+      if vim.api.nvim_buf_get_option(buf, "filetype") == w.config.const.filetype then
         explorer_win = win
       else
         table.insert(other_wins, win)

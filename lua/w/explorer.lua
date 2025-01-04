@@ -80,7 +80,7 @@ local function set_last_position(pos)
 end
 
 local function highlight_current_file()
-  local ns_id = vim.api.nvim_create_namespace("w_explorer_highlight")
+  local ns_id = vim.api.nvim_create_namespace(config.const.namespace)
   local buf = M.get_buffer()
   debug.log("explorer", "highlight_current_file - start", buf, ns_id)
 
@@ -222,9 +222,9 @@ end
 ---@param buf? number explorer buffer handle
 local function setup_explorer_autocmds(buf)
   -- Cursor tracking
-  local tracking_group = vim.api.nvim_create_augroup("WExplorer", { clear = true })
+  local group = vim.api.nvim_create_augroup(config.const.explorer_augroup, { clear = true })
   vim.api.nvim_create_autocmd("CursorMoved", {
-    group = tracking_group,
+    group = group,
     buffer = buf,
     callback = function()
       local win = M.get_window()
@@ -235,9 +235,8 @@ local function setup_explorer_autocmds(buf)
   })
 
   -- Current file highlighting
-  local highlight_group = vim.api.nvim_create_augroup("WExplorerHighlight", { clear = true })
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
-    group = highlight_group,
+    group = group,
     callback = highlight_current_file,
   })
 end
@@ -286,7 +285,7 @@ local function ensure_buffer()
   api.nvim_buf_set_option(new_buf, "buftype", "nofile")
   api.nvim_buf_set_option(new_buf, "bufhidden", "wipe")
   api.nvim_buf_set_option(new_buf, "swapfile", false)
-  api.nvim_buf_set_option(new_buf, "filetype", layout.EXPLORER_FILETYPE)
+  api.nvim_buf_set_option(new_buf, "filetype", config.const.filetype)
   api.nvim_buf_set_option(new_buf, "modifiable", false)
 
   setup_explorer_autocmds(new_buf)

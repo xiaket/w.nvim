@@ -26,7 +26,22 @@ local defaults = {
   debug = false,
 }
 
+---@class Const
+---@field filetype string explorer window filetype
+---@field namespace string explorer highlight namespace
+---@field dir_filetype string special filetype for directories
+---@field augroup string autocommand group name
+---@field explorer_augroup string autocommand group for explorer buffer/window
+local const = {
+  filetype = "WExplorer",
+  namespace = "WExplorerHighlight",
+  dir_filetype = "w.dir",
+  augroup = "W",
+  explorer_augroup = "WExplorer",
+}
+
 M.options = {}
+M.const = const
 
 -- Helper function to check config keys against reference keys
 ---@param config table configuration table to check

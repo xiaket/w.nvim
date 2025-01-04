@@ -24,8 +24,10 @@ end
 
 -- Create autocommands
 local function create_autocommands()
-  local dir_filetype = "w.dir"
-  local group = vim.api.nvim_create_augroup("W", { clear = true })
+  local config = require("w.config")
+
+  local dir_filetype = config.const.dir_filetype
+  local group = vim.api.nvim_create_augroup(config.const.augroup, { clear = true })
 
   -- Handle window resize
   vim.api.nvim_create_autocmd({ "BufWinEnter", "VimResized", "WinClosed" }, {

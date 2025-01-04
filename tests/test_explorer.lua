@@ -148,13 +148,6 @@ T["navigation"]["should_navigate_directories"] = function()
 
   local result = find_line_in_explorer("Program Files$")
   assert_equal(result.found, true)
-  child.lua(
-    [[
-  local debug = require('w.debug')
-  debug.log("result:", vim.inspect(...))
-  ]],
-    { result }
-  )
   local win = child.lua_get("w.explorer.get_window()")
   assert_equal(result.found, true)
 
@@ -211,7 +204,7 @@ T["highlighting"]["should_highlight_current_file"] = function()
   -- Check highlighting
   local has_highlight = child.lua([[
     local buf = w.explorer.get_buffer()
-    local ns = vim.api.nvim_create_namespace('w_explorer_highlight')
+    local ns = vim.api.nvim_create_namespace(w.config.const.namespace)
     
     local extmarks = vim.api.nvim_buf_get_extmarks(
       buf,
