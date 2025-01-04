@@ -67,10 +67,6 @@ end
 ---@private
 ---@param dir string
 local function set_current_dir(dir)
-  local stat = vim.loop.fs_stat(dir)
-  if not stat or stat.type ~= "directory" then
-    error(string.format("Invalid directory: %s", dir))
-  end
   _state._current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
 end
 
@@ -125,6 +121,7 @@ local function read_dir(path, ignore_max)
   end
 
   local files = {}
+  -- TODO: add error handling.
   local handle = vim.loop.fs_scandir(path)
   local max_files = config.options.explorer.max_files
   local is_truncated = false
@@ -223,11 +220,11 @@ end
 
 ---Create cursor tracking for explorer buffer
 ---@param buf? number explorer buffer handle
-local function track_cursor(buf)
-  local group = vim.api.nvim_create_augroup("WExplorer", { clear = true })
-
+local function setup_explorer_autocmds(buf)
+  -- Cursor tracking
+  local tracking_group = vim.api.nvim_create_augroup("WExplorer", { clear = true })
   vim.api.nvim_create_autocmd("CursorMoved", {
-    group = group,
+    group = tracking_group,
     buffer = buf,
     callback = function()
       local win = M.get_window()
@@ -236,6 +233,35 @@ local function track_cursor(buf)
       end
     end,
   })
+
+  -- Current file highlighting
+  local highlight_group = vim.api.nvim_create_augroup("WExplorerHighlight", { clear = true })
+  vim.api.nvim_create_autocmd({ "BufEnter" }, {
+    group = highlight_group,
+    callback = highlight_current_file,
+  })
+end
+
+local function setup_buffer_keymaps(buf)
+  -- Setup keymaps helper
+  local function map(keys, callback)
+    if type(keys) == "string" then
+      keys = { keys }
+    end
+
+    for _, key in ipairs(keys) do
+      api.nvim_buf_set_keymap(buf, "n", key, "", {
+        callback = callback,
+        noremap = true,
+        silent = true,
+      })
+    end
+  end
+
+  -- Set up basic keymaps
+  map(config.options.explorer.keymaps.close, M.toggle_explorer)
+  map(config.options.explorer.keymaps.go_up, go_up)
+  map(config.options.explorer.keymaps.open, open_current)
 end
 
 ---Create explorer buffer if not exists
@@ -263,33 +289,10 @@ local function ensure_buffer()
   api.nvim_buf_set_option(new_buf, "filetype", layout.EXPLORER_FILETYPE)
   api.nvim_buf_set_option(new_buf, "modifiable", false)
 
-  -- Setup keymaps
-  local function map(keys, callback)
-    if type(keys) == "string" then
-      keys = { keys }
-    end
-
-    for _, key in ipairs(keys) do
-      api.nvim_buf_set_keymap(new_buf, "n", key, "", {
-        callback = callback,
-        noremap = true,
-        silent = true,
-      })
-    end
-  end
-
-  map(config.options.explorer.keymaps.close, M.toggle_explorer)
-  map(config.options.explorer.keymaps.go_up, go_up)
-  map(config.options.explorer.keymaps.open, open_current)
-
+  setup_explorer_autocmds(new_buf)
+  setup_buffer_keymaps(new_buf)
   set_buffer(new_buf)
-  track_cursor(new_buf)
 
-  local group = vim.api.nvim_create_augroup("WExplorerHighlight", { clear = true })
-  vim.api.nvim_create_autocmd({ "BufEnter" }, {
-    group = group,
-    callback = highlight_current_file,
-  })
   debug.dump_state("explorer exit ensure_buffer")
 end
 
@@ -298,8 +301,8 @@ end
 local function enter_dir(dir)
   debug.log("explorer", "entering directory:", dir)
   local new_dir = dir:gsub("/$", "")
-  set_current_dir(new_dir)
   local files, is_truncated = read_dir(new_dir)
+  set_current_dir(new_dir)
   display_files(files, is_truncated)
 end
 
@@ -321,17 +324,6 @@ local function create_window()
     string.format("topleft vertical %dsplit | buffer %d", config.options.explorer.window_width, buf)
   )
   local win = api.nvim_get_current_win()
-  debug.log(
-    "explorer",
-    string.format(
-      "After window creation - win: %d, buf: %d, width: %d, ft: %s",
-      win,
-      vim.api.nvim_win_get_buf(win),
-      vim.api.nvim_win_get_width(win),
-      vim.api.nvim_buf_get_option(vim.api.nvim_win_get_buf(win), "filetype")
-    )
-  )
-  debug.dump_state("explorer create window")
 
   -- Set window options
   api.nvim_win_set_option(win, "number", false)
@@ -361,6 +353,29 @@ go_up = function()
   debug.dump_state("explorer exit go_up")
 end
 
+local function find_target_window(current_win)
+  -- Try previous active window
+  local target = layout.get_previous_active_window()
+  if target and target ~= current_win then
+    return target
+  end
+
+  -- Try other existing windows
+  for _, win in ipairs(api.nvim_tabpage_list_wins(0)) do
+    if win ~= current_win then
+      return win
+    end
+  end
+
+  -- Create new split
+  local saved_win = api.nvim_get_current_win()
+  vim.cmd("wincmd l") -- Move right
+  if api.nvim_get_current_win() == saved_win then
+    vim.cmd("vsplit") -- Create new split if at rightmost window
+  end
+  return api.nvim_get_current_win()
+end
+
 ---Open file or directory under cursor
 open_current = function()
   debug.dump_state("explorer enter open_current")
@@ -373,9 +388,15 @@ open_current = function()
 
   -- Get current line and extract name
   local line = api.nvim_get_current_line()
-  local name = line:match("^.+%s(.+)$")
+  -- remove icon and space from the line.
+  local name = line:match("^[^ ]+ (.+)$")
   if not name then
     debug.log("explorer", "could not extract name from line:", line)
+    return
+  end
+
+  -- Skip ['j' to load more]
+  if name:match("^%[.*%]$") then
     return
   end
 
@@ -395,33 +416,7 @@ open_current = function()
     -- Open file in appropriate window
     debug.log("explorer", "opening file:", path)
 
-    -- Get target window for file
-    local target_win = layout.get_previous_active_window()
-    debug.log("explorer", "initial target window:", target_win and target_win or "nil")
-
-    if not target_win or target_win == win then
-      -- If no active split or it's the explorer window, try to find another window
-      local wins = api.nvim_tabpage_list_wins(0)
-      for _, _win in ipairs(wins) do
-        if _win ~= win then
-          target_win = _win
-          debug.log("explorer", "found alternative window:", _win)
-          break
-        end
-      end
-
-      -- If still no target window, create a new split
-      if not target_win then
-        local saved_win = api.nvim_get_current_win()
-        vim.cmd("wincmd l") -- Move right
-        if api.nvim_get_current_win() == saved_win then
-          vim.cmd("vsplit") -- Create new split if at rightmost window
-        end
-        target_win = api.nvim_get_current_win()
-        debug.log("explorer", "created new target window:", target_win)
-      end
-    end
-
+    local target_win = find_target_window(win)
     -- Open file in target window
     api.nvim_set_current_win(target_win)
     debug.log("explorer", "switching to target window:", target_win)
@@ -470,7 +465,6 @@ function M.open(dir)
 
     -- Update state
     current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
-    set_current_dir(current_dir)
     debug.log("explorer", "set directory to:", current_dir)
   end
 
@@ -483,6 +477,7 @@ function M.open(dir)
 
   -- Load and display content
   local files, is_truncated = read_dir(current_dir)
+  set_current_dir(current_dir)
   display_files(files, is_truncated)
 
   -- Restore position if available

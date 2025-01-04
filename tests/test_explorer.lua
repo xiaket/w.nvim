@@ -2,29 +2,12 @@
 local H = require("tests.helpers")
 local new_set = H.new_set
 local assert_equal = H.assert_equal
-local assert_almost_equal = H.assert_almost_equal
 
 -- Create child process with required modules
 local child, hooks = H.new_child({ "init", "config", "layout", "explorer" })
 
 -- Create test set with hooks
 local T = new_set({ hooks = hooks })
-
--- Helper functions for test directory management
-local function ensure_clean_dir(dir)
-  child.lua(
-    [[
-    local dir = ...
-    -- Try to delete first if exists
-    if vim.fn.isdirectory(dir) == 1 then
-      vim.fn.delete(dir, "rf")
-    end
-    -- Create fresh directory
-    vim.fn.mkdir(dir, "p")
-  ]],
-    { dir }
-  )
-end
 
 local get_key = function(path)
   local keys = child.lua_get(path)
@@ -36,218 +19,155 @@ local get_key = function(path)
 end
 
 local function create_test_dir()
-  local test_dir = child.lua_get("vim.fn.tempname()")
-
-  ensure_clean_dir(test_dir)
-
-  child.lua(
-    [[
-    local test_dir = ...
+  local dir = child.lua_get("vim.fn.tempname()")
+  local cmd = [[
+    local dir = ...
     local files = {
       "normal.file",
       "file1.txt",
       "file2.lua",
+      "测试文件.md",
       ".hidden_file",
-      "test_dir/nested_file.txt",
+      "Program Files/test.md",
+      "temp_dir/nested_file.txt",
       "empty_dir/",
     }
 
+    -- Try to delete first if exists
+    if vim.fn.isdirectory(dir) == 1 then
+      vim.fn.delete(dir, "rf")
+    end
+    -- Create fresh directory
+    vim.fn.mkdir(dir, "p")
+
+    -- Create files
     for _, file in ipairs(files) do
       if file:match("/$") then
-        vim.fn.mkdir(test_dir .. "/" .. file:sub(1, -2), "p")
+        vim.fn.mkdir(dir .. "/" .. file:sub(1, -2), "p")
       else
-        local dir = file:match("(.+)/")
-        if dir then
-          vim.fn.mkdir(test_dir .. "/" .. dir, "p")
+        local _dir = file:match("(.+)/")
+        if _dir then
+          vim.fn.mkdir(dir .. "/" .. _dir, "p")
         end
-        local f = io.open(test_dir .. "/" .. file, "w")
+        local f = io.open(dir .. "/" .. file, "w")
         if f then
           f:write("Test content")
           f:close()
         end
       end
     end
-  ]],
-    { test_dir }
-  )
+  ]]
 
-  return test_dir
+  child.lua(cmd, { dir })
+  return dir
 end
 
--- Cleanup helper
-local function cleanup_test_dir(dir)
-  if not dir then
-    return
-  end
-  -- TODO: make this shorter.
-  child.lua(
-    [[
-    local dir = ...
-    if vim.fn.isdirectory(dir) == 1 then
-      vim.fn.delete(dir, "rf")
+local function find_line_in_explorer(pattern)
+  local cmd = [[
+    local lines = vim.api.nvim_buf_get_lines(w.explorer.get_buffer(), 0, -1, false)
+    for i, line in ipairs(lines) do
+      if line:match(...) then return { found = true, index = i} end
     end
-  ]],
-    { dir }
-  )
+    return { found = false, index = -1 }
+  ]]
+  return child.lua(cmd, { pattern })
+end
+
+local function open_explorer_with(test_dir, opts)
+  if opts == nil then
+    opts = {}
+  end
+  child.lua("w.config.setup(...)", { opts })
+  child.lua("w.explorer.open(...)", { test_dir })
 end
 
 -- Test explorer toggle functionality
 T["toggle_explorer"] = new_set()
 
 T["toggle_explorer"]["should_create_and_close_explorer_window"] = function()
-  local wins_before = child.lua_get("#vim.api.nvim_list_wins()")
-  assert_equal(wins_before, 1, "Should start with exactly one window")
+  assert_equal(#child.api.nvim_list_wins(), 1, "Should start with exactly one window")
+  child.lua("w.explorer.open()")
+  assert_equal(#child.api.nvim_list_wins(), 2, "Should have two windows after open")
 
-  -- Toggle explorer on
-  child.lua([[w.explorer.open()]])
-  local wins = child.lua_get("#vim.api.nvim_list_wins()")
-  assert_equal(wins, 2, "Should have two windows after open")
-
-  -- Verify explorer window properties
-  local explorer_info = child.lua([[
-    local win = w.explorer.get_window()
-    return win and {
-      width = vim.api.nvim_win_get_width(win)
-    }
-  ]])
-
-  assert_equal(explorer_info ~= nil, true)
-  assert_almost_equal(explorer_info.width, child.lua_get("w.config.options.explorer.window_width"))
+  local win = child.lua_get("w.explorer.get_window()")
+  local width = child.api.nvim_win_get_width(win)
+  assert_equal(width, child.lua_get("w.config.options.explorer.window_width"))
 
   -- Toggle explorer off
-  child.lua([[w.explorer.close()]])
-  wins = child.lua_get("#vim.api.nvim_list_wins()")
-  assert_equal(wins, wins_before)
+  child.lua("w.explorer.close()")
+  assert_equal(#child.api.nvim_list_wins(), 1, "Should end with exactly one window")
 end
 
 -- Test directory reading and display
-T["directory_reading"] = new_set()
-
-T["directory_reading"]["should_respect_show_hidden_setting"] = new_set({
+T["directory_reading"] = new_set({
   parametrize = {
     { true }, -- show_hidden = true
     { false }, -- show_hidden = false
   },
 })
 
-T["directory_reading"]["should_respect_show_hidden_setting"]["works"] = function(show_hidden)
+T["directory_reading"]["should_respect_show_hidden_setting"] = function(show_hidden)
   local test_dir = create_test_dir()
 
   -- Setup config with parametrized value
-  child.lua(
-    [[
-  w.config.setup({ explorer = {show_hidden = select(1, ...) }})
-  w.explorer.open(select(2, ...))
-    ]],
-    { show_hidden, test_dir }
-  )
-
-  -- Check results
-  local results = child.lua([[
-    local buf = w.explorer.get_buffer()
-    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    local has_hidden, has_normal, has_dir = false, false, false
-    for _, line in ipairs(lines) do
-      if line:match("%.hidden_file$") then has_hidden = true end
-      if line:match("normal.file$") then has_normal = true end
-      if line:match("test_dir$") then has_dir = true end
-    end
-    return { has_hidden = has_hidden, has_normal = has_normal, has_dir = has_dir }
-  ]])
-
-  -- Expectations should match the show_hidden parameter
-  assert_equal(results.has_hidden, show_hidden)
-  assert_equal(results.has_normal, true) -- normal files always shown
-  assert_equal(results.has_dir, true) -- directories always shown
-
-  cleanup_test_dir(test_dir)
+  open_explorer_with(test_dir, { explorer = { show_hidden = show_hidden } })
+  assert_equal(find_line_in_explorer("%.hidden_file$").found, show_hidden)
+  assert_equal(find_line_in_explorer("normal.file$").found, true)
+  assert_equal(find_line_in_explorer("temp_dir$").found, true)
 end
 
 T["directory_reading"]["should_respect_max_files_setting"] = function()
   local test_dir = create_test_dir()
+  open_explorer_with(test_dir, { explorer = { max_files = 3 } })
 
-  -- Test with max_files = 100
-  child.lua(
-    [[
-    w.config.setup({ explorer = {max_files = 3 }})
-    w.explorer.open(...)
-  ]],
-    { test_dir }
-  )
-
-  local file_info = child.lua([[
-    local buf = w.explorer.get_buffer()
-    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    return {
-      truncation_message = lines[#lines] == "['j' to load more]",
-      line_count = #lines
-    }
-  ]])
-  assert_equal(file_info.truncation_message, true)
-  assert_equal(file_info.line_count <= 100, true)
-
-  cleanup_test_dir(test_dir)
+  local buf = child.lua_get("w.explorer.get_buffer()")
+  assert_equal(find_line_in_explorer("['j' to load more]").found, true)
+  assert_equal(#child.api.nvim_buf_get_lines(buf, 0, -1, false) < 5, true)
 end
 
 -- Test navigation functionality
 T["navigation"] = new_set()
 
+T["navigation"]["should_restore_cursor_position"] = function()
+  local test_dir = create_test_dir()
+  open_explorer_with(test_dir)
+
+  local win = child.lua_get("w.explorer.get_window()")
+  child.api.nvim_win_set_cursor(win, { 3, 0 })
+
+  child.lua("w.explorer.close()")
+  child.lua("w.explorer.open()")
+
+  local cursor = child.api.nvim_win_get_cursor(child.lua_get("w.explorer.get_window()"))
+  assert_equal(cursor[1], 3)
+end
+
 T["navigation"]["should_navigate_directories"] = function()
   local test_dir = create_test_dir()
+  open_explorer_with(test_dir)
 
-  -- Set up explorer
-  child.lua([[w.explorer.open(...)]], { test_dir })
-
-  -- Find and enter test_dir
-  local test_dir_line = child.lua([[
-    local buf = w.explorer.get_buffer()
-    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for i, line in ipairs(lines) do
-      if line:match("test_dir$") then
-        return i
-      end
-    end
-  ]])
-  assert_equal(test_dir_line ~= nil, true)
-
-  -- Navigate to test_dir and open it
+  local result = find_line_in_explorer("Program Files$")
+  assert_equal(result.found, true)
   child.lua(
-    [[    vim.api.nvim_win_set_cursor(w.explorer.get_window(), {...})]],
-    { test_dir_line, 0 }
+    [[
+  local debug = require('w.debug')
+  debug.log("result:", vim.inspect(...))
+  ]],
+    { result }
   )
+  local win = child.lua_get("w.explorer.get_window()")
+  assert_equal(result.found, true)
 
+  -- Navigate to 'Program Files' and open it
+  child.api.nvim_win_set_cursor(win, { result.index, 0 })
   child.type_keys(get_key("w.config.options.explorer.keymaps.open"))
-
-  -- Verify we can see nested_file.txt
-  local has_nested = child.lua([[
-    local buf = w.explorer.get_buffer()
-    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for _, line in ipairs(lines) do
-      if line:match("nested_file.txt$") then
-        return true
-      end
-    end
-    return false
-  ]])
-  assert_equal(has_nested, true)
+  assert_equal(find_line_in_explorer("test.md$").found, true)
 
   -- Test going up
   child.type_keys(get_key("w.config.options.explorer.keymaps.go_up"))
 
   -- Verify we're back in root
-  local has_test_dir = child.lua([[
-    local buf = w.explorer.get_buffer()
-    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for _, line in ipairs(lines) do
-      if line:match("test_dir$") then
-        return true
-      end
-    end
-    return false
-  ]])
-  assert_equal(has_test_dir, true)
-
-  cleanup_test_dir(test_dir)
+  assert_equal(find_line_in_explorer("Program Files$").found, true)
 end
 
 T["navigation"]["should_open_files_in_appropriate_window"] = function()
@@ -255,43 +175,27 @@ T["navigation"]["should_open_files_in_appropriate_window"] = function()
 
   -- Create initial split and open explorer
   child.cmd("vsplit")
-  local wins_before = child.lua_get("#vim.api.nvim_list_wins()")
-  child.lua([[w.explorer.open(...)]], { test_dir })
+  open_explorer_with(test_dir)
+  assert_equal(#child.api.nvim_list_wins(), 3, "Should have three windows")
 
-  -- Find and open file1.txt
-  local file_line = child.lua([[
-    local buf = w.explorer.get_buffer()
-    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for i, line in ipairs(lines) do
-      if line:match("file1.txt$") then
-        return i
-      end
-    end
-  ]])
+  local win = child.lua_get("w.explorer.get_window()")
+  local result = find_line_in_explorer("测试文件.md$")
 
-  child.lua([[vim.api.nvim_win_set_cursor(w.explorer.get_window(), {...})]], { file_line, 0 })
+  child.api.nvim_win_set_cursor(win, { result.index, 0 })
   child.type_keys(child.lua_get("w.config.options.explorer.keymaps.open"))
 
   -- Verify file opened correctly
-  local result = child.lua(
-    [[
-    local vresult = vim.fn.win_getid(vim.fn.bufwinnr(...))
-    local test_dir = ...
-    local current_buf = vim.api.nvim_get_current_buf()
-    local buf_name = vim.api.nvim_buf_get_name(current_buf)
-    return {
-      expected_path = vim.fn.resolve(test_dir .. "/file1.txt"),
-      actual_path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(current_buf), ":p"),
-      win_count = #vim.api.nvim_list_wins()
-    }
-  ]],
-    { test_dir }
-  )
+  local expected_path = child.fn.resolve(test_dir .. "/测试文件.md")
+  local actual_path =
+    child.fn.fnamemodify(child.api.nvim_buf_get_name(child.api.nvim_get_current_buf()), ":p")
+  assert_equal(actual_path, expected_path)
+end
 
-  assert_equal(result.actual_path, result.expected_path)
-  assert_equal(result.win_count, wins_before + 1) -- +1 for explorer
+T["navigation"]["should_handle_invalid_directory"] = function()
+  local invalid_dir = "/path/that/does/not/exist"
+  open_explorer_with(invalid_dir)
 
-  cleanup_test_dir(test_dir)
+  assert_equal(child.lua_get("w.explorer.get_window()"), vim.NIL)
 end
 
 -- Test file highlighting
@@ -300,10 +204,9 @@ T["highlighting"] = new_set()
 T["highlighting"]["should_highlight_current_file"] = function()
   local test_dir = create_test_dir()
   local file_path = test_dir .. "/file1.txt"
+  open_explorer_with(vim.fn.fnamemodify(file_path, ":h"))
 
-  child.lua([[w.explorer.open(vim.fn.fnamemodify(..., ":h"))]], { file_path })
-  child.cmd("wincmd l")
-  child.cmd("edit " .. file_path)
+  child.cmd("wincmd l | edit " .. file_path)
 
   -- Check highlighting
   local has_highlight = child.lua([[
@@ -326,8 +229,6 @@ T["highlighting"]["should_highlight_current_file"] = function()
     return false
   ]])
   assert_equal(has_highlight, true)
-
-  cleanup_test_dir(test_dir)
 end
 
 return T
