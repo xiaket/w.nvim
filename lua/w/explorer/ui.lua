@@ -4,7 +4,6 @@ local M = {}
 local config = require("w.config")
 local debug = require("w.debug")
 local autocmd = require("w.explorer.autocmd")
-local fs = require("w.explorer.fs")
 local state = require("w.explorer.state")
 
 function M.highlight_current_file()
@@ -123,28 +122,7 @@ function M.display_files(files, is_truncated)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
   -- Set up 'j' mapping
-  vim.api.nvim_buf_set_keymap(buf, "n", "j", "", {
-    callback = function()
-      local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-      local line_count = vim.api.nvim_buf_line_count(buf)
-
-      -- Only intercept when truncated and cursor is on last line
-      if is_truncated and cursor_line == line_count then
-        local current_dir = M.get_current_dir()
-        debug.log("explorer", "loading full directory")
-        local full_files = fs.read_dir(current_dir, true)
-        M.display_files(full_files, false)
-        return
-      end
-
-      -- Return '<Cmd>normal! j<CR>' for default behavior
-      return "j"
-    end,
-    -- Using expr to make things like 2j(move down two lines) work.
-    expr = true,
-    noremap = true,
-    silent = true,
-  })
+  autocmd.setup_truncation_keymap(buf, is_truncated)
 
   debug.dump_state("explorer after display_files")
 end
