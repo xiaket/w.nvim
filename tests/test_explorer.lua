@@ -98,6 +98,22 @@ T["toggle_explorer"]["should_create_and_close_explorer_window"] = function()
   assert_equal(#child.api.nvim_list_wins(), 1, "Should end with exactly one window")
 end
 
+T["toggle_explorer"]["should_create_new_splits_with_explorer_window"] = function()
+  assert_equal(#child.api.nvim_list_wins(), 1, "Should start with exactly one window")
+  child.lua("w.explorer.open()")
+  child.lua("w.layout.split('right')")
+  child.lua("w.layout.split('right')")
+  assert_equal(
+    #child.api.nvim_list_wins(),
+    3,
+    "Should have two windows with another explorer window"
+  )
+
+  local win = child.lua_get("w.explorer.get_window()")
+  local width = child.api.nvim_win_get_width(win)
+  assert_equal(width, child.lua_get("w.config.options.explorer.window_width"))
+end
+
 -- Test directory reading and display
 T["directory_reading"] = new_set({
   parametrize = {
