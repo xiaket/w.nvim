@@ -8,6 +8,24 @@ local function create_commands()
     WSplitRight = { module = "layout", fn = "split", args = { "right" } },
     WSplitUp = { module = "layout", fn = "split", args = { "up" } },
     WSplitDown = { module = "layout", fn = "split", args = { "down" } },
+    WPrevBuffer = {
+      module = "explorer",
+      fn = "with_editor_window",
+      args = {
+        function()
+          vim.cmd("bprevious")
+        end,
+      },
+    },
+    WNextBuffer = {
+      module = "explorer",
+      fn = "with_editor_window",
+      args = {
+        function()
+          vim.cmd("bnext")
+        end,
+      },
+    },
   }
 
   for cmd_name, cmd_def in pairs(commands) do

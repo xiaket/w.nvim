@@ -7,6 +7,7 @@ local debug = require("w.debug")
 local state = require("w.explorer.state")
 local fs = require("w.explorer.fs")
 local ui = require("w.explorer.ui")
+local util = require("w.layout.util")
 
 -- Exposing the following things in state.
 M.get_window = state.get_window
@@ -93,6 +94,26 @@ function M.toggle_explorer()
   else
     M.open()
   end
+end
+
+function M.with_editor_window(callback)
+  local current_win = vim.api.nvim_get_current_win()
+
+  if util.is_explorer(current_win) then
+    local last_active = require("w.layout").get_previous_active_window()
+    if last_active and vim.api.nvim_win_is_valid(last_active) then
+      vim.api.nvim_set_current_win(last_active)
+    else
+      for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if not util.is_explorer(win) then
+          vim.api.nvim_set_current_win(win)
+          break
+        end
+      end
+    end
+  end
+
+  callback()
 end
 
 return M
