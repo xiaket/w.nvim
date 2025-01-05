@@ -81,19 +81,21 @@ function M.can_split(current_win, direction)
   local sibling_count = 0
   for _, child in ipairs(parent[2]) do
     if child[1] == "leaf" then
-      sibling_count = sibling_count + 1
+      local win_id = child[2]
+      if not util.is_explorer(win_id) then
+        sibling_count = sibling_count + 1
+      end
     end
   end
 
-  -- Check split direction and count
-  if
-    (direction == "left" or direction == "right")
-    and split_type == "row"
-    and sibling_count >= 2
-  then
+  if sibling_count < 2 then
+    return true
+  end
+  -- Check split direction
+  if (direction == "left" or direction == "right") and split_type == "row" then
     return false
   end
-  if (direction == "up" or direction == "down") and split_type == "col" and sibling_count >= 2 then
+  if (direction == "up" or direction == "down") and split_type == "col" then
     return false
   end
 
