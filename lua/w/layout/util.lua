@@ -224,35 +224,4 @@ function M.is_explorer(win_id)
   return ft == config.const.filetype
 end
 
---- Create new split in specified direction
----@param direction "left"|"right"|"up"|"down"
-function M.create_split(direction)
-  -- Map direction to vim split commands
-  debug.log("creating split in", direction)
-  local split_commands = {
-    left = { "v", "h" },
-    right = { "v", "l" },
-    up = { "s", "k" },
-    down = { "s", "j" },
-  }
-
-  local commands = split_commands[direction]
-  if commands then
-    local tree = vim.fn.winlayout()
-    debug.log("before tree:", vim.inspect(tree))
-    local current_win = vim.api.nvim_get_current_win()
-    debug.log("Window before split:", current_win)
-
-    debug.log("running wincmd:", commands[1])
-    vim.api.nvim_command("wincmd " .. commands[1]) -- Create split
-    debug.log("Window after first command:", vim.api.nvim_get_current_win())
-
-    debug.log("running wincmd:", commands[2])
-    vim.api.nvim_command("wincmd " .. commands[2]) -- Move to the new split
-    debug.log("Window after second command:", vim.api.nvim_get_current_win())
-    tree = vim.fn.winlayout()
-    debug.log("after tree:", vim.inspect(tree))
-  end
-end
-
 return M

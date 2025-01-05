@@ -259,4 +259,26 @@ function M.calculate_window_sizes()
   return sizes
 end
 
+--- Create new split in specified direction
+---@param direction "left"|"right"|"up"|"down"
+function M.create_split(direction)
+  debug.dump_state("start layout:create_split")
+  debug.log("creating split in", direction)
+
+  local split_commands = {
+    left = "wincmd v|wincmd h",
+    right = "wincmd v|wincmd l",
+    up = "wincmd s|wincmd k",
+    down = "wincmd s|wincmd j",
+  }
+
+  local command = split_commands[direction]
+  if command then
+    debug.log("running command:", command)
+    vim.cmd(command)
+  end
+
+  debug.dump_state("exit layout:create_split")
+end
+
 return M

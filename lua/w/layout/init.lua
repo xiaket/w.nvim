@@ -71,8 +71,8 @@ M.calculate_window_sizes = core.calculate_window_sizes
 ---    b. If we were in C then switched focus to A, running :WSplitRight in A will land in C.
 function M.split(direction)
   debug.log(string.rep("=", 40), "split called with direction:", direction, string.rep("=", 40))
+  debug.dump_state("layout:enter split")
   local current = vim.api.nvim_get_current_win()
-  debug.log("current window:", current)
 
   -- Only allow right split for explorer windows
   if util.is_explorer(current) then
@@ -84,26 +84,19 @@ function M.split(direction)
 
   -- Try to find existing window to focus
   local target_win = core.find_target_window(current, direction)
+  debug.log("target window:", target_win)
   if target_win then
-    debug.log("found target window", target_win)
     vim.api.nvim_set_current_win(target_win)
-    debug.log("current window:", vim.api.nvim_get_current_win())
-    debug.log("End of run.", string.rep("=", 80))
     return
   end
 
-  debug.log("target window not found")
   -- Check if new split is allowed
   if not core.can_split(current, direction) then
     debug.log("Cannot create new split in this direction")
-    debug.log("current window:", vim.api.nvim_get_current_win())
-    debug.log("End of run.", string.rep("=", 80))
     return
   end
 
-  util.create_split(direction)
-  debug.log("current window:", vim.api.nvim_get_current_win())
-  debug.log(string.rep("=", 40), "Finished split.", string.rep("=", 40))
+  core.create_split(direction)
 end
 
 ---Redraw all windows according to golden ratio
