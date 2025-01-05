@@ -1,10 +1,15 @@
 -- debug.lua
 local M = {}
 
--- Enable or disable debug globally
-M.enabled = false
--- log file path instead of stdout
-M.log_file_path = nil
+if os.getenv("W_DEBUG") then
+  -- Enable or disable debug globally
+  M.enabled = true
+  -- log file path instead of stdout
+  M.log_file_path = "/tmp/w-debug.log"
+else
+  M.enabled = false
+  M.log_file_path = nil
+end
 local log_file = nil
 
 ---Get current timestamp
