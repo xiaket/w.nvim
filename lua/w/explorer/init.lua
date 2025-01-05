@@ -1,6 +1,7 @@
 local M = {}
 
 -- Dependencies
+local config = require("w.config")
 local debug = require("w.debug")
 
 local state = require("w.explorer.state")
@@ -53,6 +54,14 @@ function M.open(dir)
     -- Update state
     current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
     debug.log("explorer", "set directory to:", current_dir)
+
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_get_option(buf, "filetype") == config.const.dir_filetype then
+        vim.api.nvim_buf_delete(buf, { force = true })
+        debug.log("explorer", "closed default dir buffer:", buf)
+        break
+      end
+    end
   end
 
   -- Create new window
