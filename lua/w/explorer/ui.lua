@@ -30,6 +30,18 @@ function M.highlight_current_file()
   end
 end
 
+local function configure_buffer(buf)
+  vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
+  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(buf, "swapfile", false)
+  vim.api.nvim_buf_set_option(buf, "filetype", config.const.filetype)
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+
+  autocmd.setup_buffer_autocmds(buf)
+  autocmd.setup_buffer_keymaps(buf)
+  state.set_buffer(buf)
+end
+
 ---Create explorer buffer if not exists
 function M.ensure_buffer()
   debug.dump_state("explorer enter ensure_buffer")
@@ -49,16 +61,7 @@ function M.ensure_buffer()
   end
 
   -- Set buffer options
-  vim.api.nvim_buf_set_option(new_buf, "buftype", "nofile")
-  vim.api.nvim_buf_set_option(new_buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(new_buf, "swapfile", false)
-  vim.api.nvim_buf_set_option(new_buf, "filetype", config.const.filetype)
-  vim.api.nvim_buf_set_option(new_buf, "modifiable", false)
-
-  autocmd.setup_buffer_autocmds(new_buf)
-  autocmd.setup_buffer_keymaps(new_buf)
-  state.set_buffer(new_buf)
-
+  configure_buffer(new_buf)
   debug.dump_state("explorer exit ensure_buffer")
 end
 
