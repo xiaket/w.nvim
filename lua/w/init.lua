@@ -36,6 +36,7 @@ local function create_commands()
       else
         mod[cmd_def.fn]()
       end
+      require("w.layout").redraw()
     end, {})
   end
 end
@@ -48,7 +49,7 @@ local function create_autocommands()
   local group = vim.api.nvim_create_augroup(config.const.augroup, { clear = true })
 
   -- Handle window resize
-  vim.api.nvim_create_autocmd({ "BufWinEnter", "VimResized", "WinClosed" }, {
+  vim.api.nvim_create_autocmd({ "VimResized" }, {
     group = group,
     callback = function()
       require("w.layout").redraw()
