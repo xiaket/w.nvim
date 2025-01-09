@@ -152,20 +152,6 @@ function M.find_path_to_window(tree, winid, path)
   return nil
 end
 
---- Check if two nodes in layout tree are the same
----@param node1 table First node from window layout tree
----@param node2 table Second node from window layout tree
----@return boolean true if nodes are the same, false otherwise
-function M.is_same_node(node1, node2)
-  if node1[1] ~= node2[1] then
-    return false
-  end
-  if node1[1] == "leaf" then
-    return node1[2] == node2[2]
-  end
-  return true
-end
-
 --- Get relative direction of target window compared to source window
 ---@param source_win number Source window handle
 ---@param target_win number Target window handle
@@ -181,10 +167,17 @@ function M.get_relative_direction(source_win, target_win)
     return nil
   end
 
+  local is_same_node = function(node1, node2)
+    if node1[1] == "leaf" and node2[1] == "leaf" then
+      return node1[2] == node2[2]
+    end
+    return node1[1] == node2[1]
+  end
+
   -- Start from path end, find the first different position
   local i = 1
   while i <= #source_path and i <= #target_path do
-    if not M.is_same_node(source_path[i].node, target_path[i].node) then
+    if not is_same_node(source_path[i].node, target_path[i].node) then
       break
     end
     i = i + 1
