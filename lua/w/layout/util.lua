@@ -76,11 +76,63 @@ function M.find_directional_leaf(tree, direction)
   return M.find_directional_leaf(children[child_index], direction)
 end
 
---- Find path from root to target window
----@param tree table Window layout tree
+--- Find the path from root to target window in the window tree
+---
+--- This function traverses the window layout tree and finds the sequence of nodes
+--- that lead from root to the target window. For each node in the path, it records
+--- both the node itself and the index of the child that leads to the target window.
+---
+--- For example, given the following window layout:
+--- +---+---+---+
+--- |   |   B   |
+--- | A +---+---+
+--- |   | C | D |
+--- +---+---+---+
+---
+--- The window tree would look like:
+--- {
+---   "row",                              -- root node
+---   {
+---     { "leaf", 1001 },                -- A
+---     { "col",                         -- B|C|D vertical split container
+---       {
+---         { "leaf", 1002 },            -- B
+---         { "row",                     -- C|D horizontal split container
+---           {
+---             { "leaf", 1003 },        -- C
+---             { "leaf", 1004 }         -- D
+---           }
+---         }
+---       }
+---     }
+---   }
+--- }
+---
+--- For window C (window ID 1003), the function would return:
+--- {
+---   {                      -- root level
+---     index = 2,          -- BCD is the second item in root row
+---     node = <root row node>
+---   },
+---   {                      -- first split level
+---     index = 2,          -- CD is the second item in the B|C|D column
+---     node = <col node>
+---   },
+---   {                      -- second split level
+---     index = 1,          -- C is the first item in C|D row
+---     node = <row node>
+---   }
+--- }
+---
+--- This path information is used for:
+--- 1. Finding relative positions of windows
+--- 2. Making intelligent decisions about window navigation
+--- 3. Understanding the nested split structure
+---
+---@param tree table Window layout tree from vim.fn.winlayout()
 ---@param winid number Window handle to find
----@param path table Path accumulator
----@return table|nil path Array of {node, index} pairs from root to window
+---@param path table Path accumulator (initially empty table)
+---@return table|nil Array of {node, index} pairs from root to window, or nil if not found
 function M.find_path_to_window(tree, winid, path)
   debug.log("tree:", vim.inspect(tree), "winid:", winid, "path:", vim.inspect(path))
   local type = tree[1]
@@ -89,52 +141,13 @@ function M.find_path_to_window(tree, winid, path)
       debug.log("found path: ", vim.inspect(path))
       return path
     end
-    debug.log("path no found")
+    debug.log("path not found")
     return nil
   end
 
   debug.log("Entering loop:", vim.inspect(tree[2]))
   for i, child in ipairs(tree[2]) do
     local child_path = vim.deepcopy(path)
-    -- Index, either 1 or 2, marks the relative position of the node.
-    -- For example, for the following layout:
-    -- +---+---+---+
-    -- |   |   B   |
-    -- | A +---+---+
-    -- |   | C | D |
-    -- +---+---+---+
-    -- The tree may look like:
-    -- { "row",                              -- root
-    --   {
-    --     { "leaf", 1001 },                -- A
-    --     { "col",                         -- B|C|D
-    --       {
-    --         { "leaf", 1002 },            -- B
-    --         { "row",                     -- C|D
-    --           {
-    --             { "leaf", 1003 },        -- C
-    --             { "leaf", 1004 }         -- D
-    --           }
-    --         }
-    --       }
-    --     }
-    --   }
-    -- }
-    -- For window C, the response will look like:
-    -- {
-    --   {
-    --     index = 2,  -- BCD is the second item in the top-level row
-    --     node = <root row node>
-    --   },
-    --   {
-    --     index = 2,  -- CD is the second item in the BCD column.
-    --     node = <col node>
-    --   },
-    --   {
-    --     index = 1,  -- C is the first item in C|D
-    --     node = <inner row node>
-    --   }
-    -- }
     table.insert(child_path, { node = tree, index = i })
     local result = M.find_path_to_window(child, winid, child_path)
     if result then
