@@ -8,6 +8,13 @@ local util = require("w.layout.util")
 ---@param current_win number Current window handle
 ---@param direction string "left"|"right"|"up"|"down"
 ---@return number|nil target_win Target window handle or nil
+---
+--- This function implements an intelligent window finding algorithm that:
+--- 1. First checks if the previously active window is in the requested direction
+--- 2. If not, traverses the window layout tree to find an appropriate target
+--- 3. For horizontal movement (left/right), looks for windows in horizontal splits
+--- 4. For vertical movement (up/down), looks for windows in vertical splits
+--- 5. Returns nil if no valid target window is found
 function M.find_target_window(current_win, direction)
   local tree = vim.fn.winlayout()
   local prev_active_window = util.get_previous_active_window()
