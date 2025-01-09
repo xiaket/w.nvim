@@ -1,13 +1,13 @@
 local M = {}
 
 -- Dependencies
+local config = require("w.config")
 local debug = require("w.debug")
 local core = require("w.layout.core")
 local util = require("w.layout.util")
 
 M.update_previous_active_window = util.update_previous_active_window
 M.get_previous_active_window = util.get_previous_active_window
-M.calculate_window_sizes = core.calculate_window_sizes
 
 ---Split current window in specified direction or focus existing window
 ---@param direction "left"|"right"|"up"|"down"
@@ -113,15 +113,43 @@ end
 ---
 ---3. Active Window Rule:
 ---   - When a window gains focus, it should get 0.618 of the space in its containing split
+-- in layout/init.lua
 function M.redraw()
-  debug.log("redraw called")
+  local current_win = vim.api.nvim_get_current_win()
 
-  local sizes = core.calculate_window_sizes()
-  for win_id, size in pairs(sizes) do
-    if vim.api.nvim_win_is_valid(win_id) then
-      vim.api.nvim_win_set_width(win_id, size.width)
-      vim.api.nvim_win_set_height(win_id, size.height)
+  if util.is_explorer(current_win) then
+    return
+  end
+
+  local layout = vim.fn.winlayout()
+  local _, parent = util.find_window_in_tree(layout, current_win, nil)
+  if not parent then
+    return
+  end
+
+  local is_vertical = parent[1] == "row"
+  local total_size = 0
+  local siblings = vim.tbl_filter(function(node)
+    return node[1] == "leaf" and not util.is_explorer(node[2])
+  end, parent[2])
+
+  if #siblings < 2 then
+    return
+  end
+
+  for _, node in ipairs(siblings) do
+    if is_vertical then
+      total_size = total_size + vim.api.nvim_win_get_width(node[2])
+    else
+      total_size = total_size + vim.api.nvim_win_get_height(node[2])
     end
+  end
+
+  local target_size = math.floor(total_size * config.options.split_ratio)
+  if is_vertical then
+    vim.api.nvim_win_set_width(current_win, target_size)
+  else
+    vim.api.nvim_win_set_height(current_win, target_size)
   end
 end
 
