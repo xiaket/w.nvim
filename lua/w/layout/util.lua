@@ -82,15 +82,7 @@ end
 ---@param path table Path accumulator
 ---@return table|nil path Array of {node, index} pairs from root to window
 function M.find_path_to_window(tree, winid, path)
-  debug.log(
-    "In find_path_to_window:",
-    "tree:",
-    vim.inspect(tree),
-    "winid:",
-    winid,
-    "path:",
-    vim.inspect(path)
-  )
+  debug.log("tree:", vim.inspect(tree), "winid:", winid, "path:", vim.inspect(path))
   local type = tree[1]
   if type == "leaf" then
     if tree[2] == winid then
@@ -206,14 +198,14 @@ end
 ---@param win_id number window ID to check
 ---@return boolean is explorer window
 function M.is_explorer(win_id)
-  debug.log("layout", string.format("checking if win %d is explorer", win_id))
+  debug.log(string.format("checking if win %d is explorer", win_id))
   if not win_id or not vim.api.nvim_win_is_valid(win_id) then
-    debug.log("layout", "invalid window")
+    debug.log("invalid window")
     return false
   end
   local buf = vim.api.nvim_win_get_buf(win_id)
   local ft = vim.api.nvim_buf_get_option(buf, "filetype")
-  debug.log("layout", string.format("window %d buffer %d filetype: %s", win_id, buf, ft))
+  debug.log(string.format("window %d buffer %d filetype: %s", win_id, buf, ft))
   return ft == config.const.filetype
 end
 

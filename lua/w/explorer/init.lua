@@ -35,9 +35,9 @@ end
 function M.open(dir)
   debug.dump_state("explorer enter open")
   local win = state.get_window()
-  debug.log("explorer", "open called", win and win or "nil")
+  debug.log("open called", win and win or "nil")
   if win then
-    debug.log("explorer", "explorer window already open")
+    debug.log("explorer window already open")
     return
   end
 
@@ -48,18 +48,18 @@ function M.open(dir)
     -- Ensure dir exists and is directory
     local stat = vim.loop.fs_stat(dir)
     if not stat or stat.type ~= "directory" then
-      debug.log("explorer", "invalid directory:", dir)
+      debug.log("invalid directory:", dir)
       return
     end
 
     -- Update state
     current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
-    debug.log("explorer", "set directory to:", current_dir)
+    debug.log("set directory to:", current_dir)
 
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_get_option(buf, "filetype") == config.const.dir_filetype then
         vim.api.nvim_buf_delete(buf, { force = true })
-        debug.log("explorer", "closed default dir buffer:", buf)
+        debug.log("closed default dir buffer:", buf)
         break
       end
     end
@@ -68,7 +68,7 @@ function M.open(dir)
   -- Create new window
   local _win = ui.create_window()
   if not _win then
-    debug.log("explorer", "failed to create window")
+    debug.log("failed to create window")
     return
   end
 
@@ -81,7 +81,7 @@ function M.open(dir)
   local last_position = M.get_last_position()
   if last_position then
     vim.fn.cursor(last_position, 0)
-    debug.log("explorer", "restored cursor position", last_position)
+    debug.log("restored cursor position", last_position)
   end
   debug.dump_state("explorer exit open")
 end

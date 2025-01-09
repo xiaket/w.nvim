@@ -9,10 +9,10 @@ local state = require("w.explorer.state")
 function M.highlight_current_file()
   local ns_id = vim.api.nvim_create_namespace(config.const.namespace)
   local buf = state.get_buffer()
-  debug.log("explorer", "highlight_current_file - start", buf, ns_id)
+  debug.log("highlight_current_file - start", buf, ns_id)
 
   if not buf then
-    debug.log("explorer", "highlight_current_file - no buffer")
+    debug.log("highlight_current_file - no buffer")
     return
   end
 
@@ -49,14 +49,14 @@ function M.ensure_buffer()
 
   -- Reuse existing buffer if valid
   if buf then
-    debug.log("explorer", "reusing existing buffer", buf)
+    debug.log("reusing existing buffer", buf)
     return
   end
 
   -- Create new buffer
   local new_buf = vim.api.nvim_create_buf(false, true)
   if not new_buf then
-    debug.log("explorer", "failed to create buffer")
+    debug.log("failed to create buffer")
     return
   end
 
@@ -72,7 +72,7 @@ function M.create_window()
 
   M.ensure_buffer()
   local buf = state.get_buffer()
-  debug.log("explorer", "created new buf", buf)
+  debug.log("created new buf", buf)
   if not buf then
     -- We have added a debug line in ensure_buffer, ignore here.
     return nil
@@ -100,11 +100,11 @@ end
 ---@param is_truncated boolean whether the list is truncated
 function M.display_files(files, is_truncated)
   debug.dump_state("explorer enter display_files")
-  debug.log("explorer", "displaying", #files, "files", is_truncated and "(truncated)" or "")
+  debug.log("displaying", #files, "files", is_truncated and "(truncated)" or "")
 
   local buf = state.get_buffer()
   if not buf then
-    debug.log("explorer", "invalid buffer")
+    debug.log("invalid buffer")
     return
   end
 

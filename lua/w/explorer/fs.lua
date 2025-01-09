@@ -14,10 +14,10 @@ end
 ---@param ignore_max? boolean whether to ignore max files limit
 ---@return table files, boolean is_truncated
 function M.read_dir(path, ignore_max)
-  debug.log("explorer", "reading directory:", path, "ignore_max:", ignore_max or false)
+  debug.log("reading directory:", path, "ignore_max:", ignore_max or false)
 
   if not M.is_valid_directory(path) then
-    debug.log("explorer", "invalid directory:", path)
+    debug.log("invalid directory:", path)
     return {}, false
   end
 
@@ -25,7 +25,7 @@ function M.read_dir(path, ignore_max)
   local handle, err = vim.loop.fs_scandir(path)
 
   if not handle then
-    debug.log("explorer", "error scanning directory:", err)
+    debug.log("error scanning directory:", err)
     vim.notify("Error reading directory: " .. err, vim.log.levels.ERROR)
     return {}, false
   end
@@ -65,7 +65,7 @@ function M.read_dir(path, ignore_max)
     end
   end)
 
-  debug.log("explorer", "found", #files, "files", is_truncated and "(truncated)" or "")
+  debug.log("found", #files, "files", is_truncated and "(truncated)" or "")
   return files, is_truncated
 end
 

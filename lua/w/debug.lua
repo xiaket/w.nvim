@@ -15,7 +15,41 @@ local log_file = nil
 ---Get current timestamp
 ---@return string|osdate formatted timestamp
 local function get_timestamp()
-  return os.date("%Y-%m-%d %H:%M:%S")
+  local now = vim.loop.hrtime()
+  local seconds = math.floor(now / 1e9)
+  local milliseconds = math.floor((now % 1e9) / 1e6)
+  return os.date("%Y-%m-%d %H:%M:%S", seconds) .. string.format(".%03d", milliseconds)
+end
+
+---Get caller info
+-- In debug.lua
+---Get caller info by walking up the stack until finding non-debug caller
+---@return string module name and function
+local function get_caller_info()
+  local level = 3 -- Start from immediate caller of debug.log
+  while true do
+    local info = debug.getinfo(level, "Sn")
+    if not info then
+      return "unknown"
+    end
+
+    -- Extract module name from source path
+    local module = info.source:match("^@.*/lua/w/(.+)%.lua$")
+    if not module then
+      return "unknown"
+    end
+
+    -- Skip if it's from debug.lua
+    if module ~= "debug" then
+      module = module:gsub("/", ".")
+      if info.name then
+        return module .. "." .. info.name
+      end
+      return module
+    end
+
+    level = level + 1
+  end
 end
 
 ---Ensure log file is open
@@ -64,18 +98,29 @@ local function format_win(win)
   return string.format("win:%d buf:%d ft:%s width:%d", win, buf, ft, width)
 end
 
----Log debug information with a prefix and timestamp
----@param prefix string prefix for the log
----@param ... any additional information to log
-function M.log(prefix, ...)
+---Log debug information with timestamp and caller info
+---@param ... any information to log
+function M.log(...)
   if not M.enabled then
     return
   end
 
   ensure_log_file()
 
-  local parts = vim.tbl_map(tostring, { ... })
-  local message = string.format("[%s] %s %s\n", get_timestamp(), prefix, table.concat(parts, " "))
+  local caller = get_caller_info()
+  -- Convert all arguments to strings, handling nil values
+  local parts = {}
+  for i = 1, select("#", ...) do
+    local v = select(i, ...)
+    table.insert(parts, v == nil and "nil" or tostring(v))
+  end
+
+  local message = string.format(
+    "[%s][%s] %s\n",
+    get_timestamp(), -- timestamp
+    caller, -- caller info
+    table.concat(parts, " ") -- message parts
+  )
 
   -- Write the message to the log file
   if log_file then

@@ -17,7 +17,7 @@ M.get_last_position = state.get_last_position
 ---Enter a directory
 ---@param dir string directory to open
 function M.enter_dir(dir)
-  debug.log("explorer", "entering directory:", dir)
+  debug.log("entering directory:", dir)
   local new_dir = dir:gsub("/$", "")
   local files, is_truncated = fs.read_dir(new_dir)
   state.set_current_dir(new_dir)
@@ -32,7 +32,7 @@ function M.go_up()
   local parent = vim.fn.fnamemodify(current_dir, ":h")
 
   if parent == current_dir then
-    debug.log("explorer", "already at root")
+    debug.log("already at root")
   else
     M.enter_dir(parent)
   end
@@ -69,7 +69,7 @@ function M.open_current()
 
   local win = state.get_window()
   if not win then
-    debug.log("explorer", "invalid window")
+    debug.log("invalid window")
     return
   end
 
@@ -78,7 +78,7 @@ function M.open_current()
   -- remove icon and space from the line.
   local name = line:match("^[^ ]+ (.+)$")
   if not name then
-    debug.log("explorer", "could not extract name from line:", line)
+    debug.log("could not extract name from line:", line)
     return
   end
 
@@ -92,7 +92,7 @@ function M.open_current()
   local path = vim.fn.fnamemodify(current_dir .. "/" .. name, ":p")
   local stat = vim.loop.fs_stat(path)
   if not stat then
-    debug.log("explorer", "could not stat path:", path)
+    debug.log("could not stat path:", path)
     return
   end
 
@@ -101,12 +101,12 @@ function M.open_current()
     M.enter_dir(path)
   else
     -- Open file in appropriate window
-    debug.log("explorer", "opening file:", path)
+    debug.log("opening file:", path)
 
     local target_win = M.find_target_window(win)
     -- Open file in target window
     vim.api.nvim_set_current_win(target_win)
-    debug.log("explorer", "switching to target window:", target_win)
+    debug.log("switching to target window:", target_win)
     vim.cmd("edit " .. vim.fn.fnameescape(path))
   end
 

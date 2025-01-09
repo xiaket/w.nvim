@@ -18,10 +18,10 @@ local util = require("w.layout.util")
 function M.find_target_window(current_win, direction)
   local tree = vim.fn.winlayout()
   local prev_active_window = util.get_previous_active_window()
-  debug.dump_state("layout:find_target_window")
+  debug.dump_state("enter")
 
   local path = util.find_path_to_window(tree, current_win, {})
-  debug.log("layout:find_path_to_window result:", vim.inspect(path))
+  debug.log("result:", vim.inspect(path))
   if not path then
     return nil
   end
@@ -29,10 +29,7 @@ function M.find_target_window(current_win, direction)
   -- Check if prev_active_window is an option.
   if prev_active_window and vim.api.nvim_win_is_valid(prev_active_window) then
     local rel_direction = util.get_relative_direction(current_win, prev_active_window)
-    debug.log(
-      "layout:find_target_window",
-      string.format("prev_active_window relative direction: %s", rel_direction)
-    )
+    debug.log("prev_active_window relative direction: %s", rel_direction)
     if rel_direction == direction then
       return prev_active_window
     end
@@ -42,7 +39,7 @@ function M.find_target_window(current_win, direction)
   for i = #path, 1, -1 do
     local node = path[i].node
     local index = path[i].index
-    debug.log("layout:find_target_window loop. i:", i, "index:", index, "node:", vim.inspect(node))
+    debug.log("loop. i:", i, "index:", index, "node:", vim.inspect(node))
 
     -- For left/right movement, look for horizontal split ("row")
     if (direction == "left" or direction == "right") and node[1] == "row" then
@@ -71,7 +68,7 @@ end
 function M.can_split(current_win, direction)
   local tree = vim.fn.winlayout()
   local _, parent = util.find_window_in_tree(tree, current_win, nil)
-  debug.log("layout:find_window_in_tree result:", vim.inspect(parent))
+  debug.log("result:", vim.inspect(parent))
 
   if not parent then
     return true -- First split always allowed
@@ -106,7 +103,7 @@ end
 ---@param direction "left"|"right"|"up"|"down"
 function M.create_split(direction)
   debug.log("creating split in", direction)
-  debug.dump_state("start layout:create_split")
+  debug.dump_state("enter")
 
   local split_commands = {
     left = "wincmd v|wincmd h",
@@ -121,7 +118,7 @@ function M.create_split(direction)
     vim.cmd(command)
   end
 
-  debug.dump_state("exit layout:create_split")
+  debug.dump_state("exit")
 end
 
 return M
