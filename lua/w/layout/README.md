@@ -4,89 +4,85 @@ A Neovim module that provides window layout management with intelligent window s
 
 ## Overview
 
-The layout module consists of three main components:
-- Public API for window operations
-- Core layout algorithms
-- Utility functions for window management
+The layout module provides:
+- Smart window splitting and focusing system
+- Golden ratio-based window sizing
+- Integration with explorer window
+- Window state tracking
+- Nested split management
 
 ## Directory Structure
 
 ```
 lua/w/layout/
-├── init.lua          -- Main entry point and public API
-├── core.lua          -- Core layout algorithms and business logic
-└── utils.lua         -- Utility functions for window operations
+├── init.lua    -- Main entry point and public API
+├── core.lua    -- Core layout algorithms
+└── util.lua    -- Utility functions
 ```
 
 ## Module Components
 
 ### init.lua
 
-Main entry point that exports public API.
-
-Functions:
-- `split(direction)`: Split window or focus existing window in specified direction
-  - direction: "left" | "right" | "up" | "down"
-- `redraw()`: Recalculate and apply window sizes
-- `update_previous_active_window()`: Update previous active window record
-- `get_previous_active_window()`: Get previous active window handle
+Main entry point that exports:
+- `split(direction)`: Split window or focus existing window
+- `redraw()`: Apply golden ratio to windows
+- `update_previous_active_window()`: Update window tracking
+- `get_previous_active_window()`: Get last active window
 
 ### core.lua
 
-Core layout algorithms and window management logic.
+Core algorithms:
+- `find_target_window(current_win, direction)`: Smart window targeting
+- `can_split(current_win, direction)`: Split validation
+- `create_split(direction)`: Split creation
 
-Functions:
-- `find_target_window(current_win, direction)`: Find target window for focus in direction
-- `can_split(current_win, direction)`: Check if new split is allowed in direction
-- `calculate_window_sizes()`: Calculate ideal sizes for all windows
-- `calculate_split_sizes(total_space, n_splits, active_index)`: Calculate sizes for splits in a container
+### util.lua
 
-### utils.lua
+Utility functions:
+- Window state management
+- Layout tree analysis
+- Window relationship calculations
+- Window type checking
 
-Utility functions for window operations and layout analysis.
+## Layout Rules
 
-Window State:
-- `update_previous_active_window()`: Update previous active window record
-- `get_previous_active_window()`: Get previous active window handle
+1. Split Management:
+   - Maximum two splits per direction (except explorer)
+   - Alternating split directions in nested splits
+   - Smart target window selection
 
-Basic Operations:
-- `is_explorer(win_id)`: Check if window is an explorer window
-- `create_split(direction)`: Create new split
-- `apply_window_sizes(sizes)`: Apply calculated sizes to windows
+2. Window Sizing:
+   - Golden ratio (0.618) for active windows
+   - Fixed width for explorer window
+   - Automatic resizing on window focus
 
-Layout Tree Utils:
-- `find_window_in_tree(tree, winid, parent)`: Find window node and its parent in layout tree
-- `find_directional_leaf(tree, direction)`: Find leaf window in direction
-- `find_path_to_window(tree, winid, path)`: Find path from root to target window
-- `get_relative_direction(source_win, target_win)`: Get relative direction between windows
-- `is_same_node(node1, node2)`: Check if two nodes are the same
+3. Explorer Integration:
+   - Fixed position on left side
+   - Only allows right splits
+   - Preserves layout structure
 
 ## Usage Examples
 
 ```lua
--- Split window to the right
+-- Split into direction or focus existing window
 require('w.layout').split('right')
-
--- Focus window to the left if exists, otherwise create new split
 require('w.layout').split('left')
+require('w.layout').split('up')
+require('w.layout').split('down')
 
--- Redraw windows with golden ratio
+-- Reapply golden ratio
 require('w.layout').redraw()
+
+-- Get previous active window
+local prev_win = require('w.layout').get_previous_active_window()
 ```
 
-## Layout Rules
+## Configuration
 
-1. Split tree rules:
-   - Each split direction can have at most two splits(apart from explorer window)
-   - Splits can be nested
-   - A horizontal split can only nest vertical splits inside it, and vice versa
+Configure through main plugin setup:
 
-2. Explorer window rules:
-   - Has fixed width
-   - Only allows splits to the right
-   - Not affected by split tree rules
-
-3. Window movement rules:
-   - When moving focus, start from current split level
-   - Search up the split tree if no target found at current level
-   - Prefer last active window if multiple targets exist
+```lua
+require('w').setup({
+  split_ratio = 0.618,  -- Golden ratio for window splits
+})
