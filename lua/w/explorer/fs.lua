@@ -9,10 +9,6 @@ function M.is_valid_directory(path)
   return stat and stat.type == "directory"
 end
 
-function M.normalize_path(path)
-  return vim.fn.fnamemodify(path, ":p"):gsub("/$", "")
-end
-
 ---Read directory contents with sorting and truncation
 ---@param path string directory path to read
 ---@param ignore_max? boolean whether to ignore max files limit
