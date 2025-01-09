@@ -26,8 +26,14 @@ function M.read_dir(path, ignore_max)
   end
 
   local files = {}
-  -- TODO: add error handling.
-  local handle = vim.loop.fs_scandir(path)
+  local handle, err = vim.loop.fs_scandir(path)
+
+  if not handle then
+    debug.log("explorer", "error scanning directory:", err)
+    vim.notify("Error reading directory: " .. err, vim.log.levels.ERROR)
+    return {}, false
+  end
+
   local max_files = config.options.explorer.max_files
   local is_truncated = false
 
