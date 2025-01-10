@@ -47,17 +47,18 @@ end
 function M.setup_truncation_keymap(buf, is_truncated)
   vim.api.nvim_buf_set_keymap(buf, "n", "j", "", {
     callback = function()
-      local fs = require("w.explorer.fs")
-      local ui = require("w.explorer.ui")
-
       local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
       local line_count = vim.api.nvim_buf_line_count(buf)
 
       if is_truncated and cursor_line == line_count then
-        local current_dir = state.get_current_dir()
-        local full_files = fs.read_dir(current_dir, true)
-        ui.display_files(full_files, false)
-        return
+        vim.schedule(function()
+          local fs = require("w.explorer.fs")
+          local ui = require("w.explorer.ui")
+          local current_dir = state.get_current_dir()
+          local full_files = fs.read_dir(current_dir, true)
+          ui.display_files(full_files, false)
+        end)
+        return ""
       end
 
       return "j"
