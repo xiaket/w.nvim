@@ -65,6 +65,10 @@ end
 local function find_line_in_explorer(pattern)
   local cmd = [[
     local lines = vim.api.nvim_buf_get_lines(w.explorer.get_buffer(), 0, -1, false)
+    local debug = require("w.debug")
+    for i, line in ipairs(lines) do
+      debug.log(string.format("line %d: %s", i, line))
+    end
     for i, line in ipairs(lines) do
       if line:match(...) then return { found = true, index = i} end
     end
@@ -115,14 +119,16 @@ T["toggle_explorer"]["should_create_new_splits_with_explorer_window"] = function
 end
 
 -- Test directory reading and display
-T["directory_reading"] = new_set({
+T["directory_reading"] = new_set()
+
+T["directory_reading"]["options"] = new_set({
   parametrize = {
     { true }, -- show_hidden = true
     { false }, -- show_hidden = false
   },
 })
 
-T["directory_reading"]["should_respect_show_hidden_setting"] = function(show_hidden)
+T["directory_reading"]["options"]["should_respect_show_hidden_setting"] = function(show_hidden)
   local test_dir = create_test_dir()
 
   -- Setup config with parametrized value
@@ -133,16 +139,55 @@ T["directory_reading"]["should_respect_show_hidden_setting"] = function(show_hid
 end
 
 T["directory_reading"]["should_respect_max_files_setting"] = function()
+  local max_files = 3
   local test_dir = create_test_dir()
-  open_explorer_with(test_dir, { explorer = { max_files = 3 } })
+  open_explorer_with(test_dir, { explorer = { max_files = max_files } })
 
+  local win = child.lua_get("w.explorer.get_window()")
   local buf = child.lua_get("w.explorer.get_buffer()")
-  assert_equal(find_line_in_explorer("['j' to load more]").found, true)
-  assert_equal(#child.api.nvim_buf_get_lines(buf, 0, -1, false) < 5, true)
+  local result = find_line_in_explorer("%[%'j%' to load more%]$")
+  assert_equal(result.found, true)
+  assert_equal(#child.api.nvim_buf_get_lines(buf, 0, -1, false) == max_files + 1, true)
+  assert_equal(result.index, max_files + 1)
+  child.api.nvim_win_set_cursor(win, { result.index, 0 })
+  child.type_keys("j")
+  assert_equal(#child.api.nvim_buf_get_lines(buf, 0, -1, false) > 5, true)
+end
+
+T["cursor_moved"] = new_set()
+
+T["cursor_moved"]["should_update_last_position_on_cursor_move"] = function()
+  local test_dir = create_test_dir()
+  open_explorer_with(test_dir)
+
+  local initial_pos = child.lua_get("w.explorer.get_last_position()")
+
+  child.type_keys("3j")
+
+  local new_pos = child.lua_get("w.explorer.get_last_position()")
+  assert_equal(new_pos, 4)
+  assert_equal(new_pos ~= initial_pos, true)
 end
 
 -- Test navigation functionality
 T["navigation"] = new_set()
+
+T["navigation"]["should_close_default_buffer"] = function()
+  local test_dir = create_test_dir()
+  open_explorer_with(test_dir)
+
+  -- Verify no buffer has w.dir filetype
+  local has_dir_buffer = child.lua([[
+    local default_buffer_type = w.config.const.dir_filetype
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_get_option(buf, 'filetype') == default_buffer_type then
+        return true
+      end
+    end
+    return false
+  ]])
+  assert_equal(has_dir_buffer, false)
+end
 
 T["navigation"]["should_restore_cursor_position"] = function()
   local test_dir = create_test_dir()
