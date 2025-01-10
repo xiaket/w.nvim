@@ -6,7 +6,7 @@ local debug = require("w.debug")
 
 function M.is_valid_directory(path)
   local stat = vim.loop.fs_stat(path)
-  return stat and stat.type == "directory"
+  return stat and stat.type == "directory" or false
 end
 
 ---Read directory contents with sorting and truncation
