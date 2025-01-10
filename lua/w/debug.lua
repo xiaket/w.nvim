@@ -13,12 +13,10 @@ end
 local log_file = nil
 
 ---Get current timestamp
----@return string|osdate formatted timestamp
+---@return string formatted timestamp
 local function get_timestamp()
-  local now = vim.loop.hrtime()
-  local seconds = math.floor(now / 1e9)
-  local milliseconds = math.floor((now % 1e9) / 1e6)
-  return os.date("%Y-%m-%d %H:%M:%S", seconds) .. string.format(".%03d", milliseconds)
+  local sec, usec = vim.loop.gettimeofday()
+  return os.date("%Y-%m-%d %H:%M:%S", sec) .. string.format(".%06d", usec)
 end
 
 ---Get caller info
