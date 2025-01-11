@@ -40,7 +40,7 @@ function M.go_up()
   debug.dump_state("explorer exit go_up")
 end
 
-function M.find_target_window(current_win)
+function M.find_window_for_file(current_win)
   -- Try previous active window
   local target = layout.get_previous_active_window()
   if target and target ~= current_win then
@@ -103,7 +103,7 @@ function M.open_current()
     -- Open file in appropriate window
     debug.log("opening file:", path)
 
-    local target_win = M.find_target_window(win)
+    local target_win = M.find_window_for_file(win)
     -- Open file in target window
     vim.api.nvim_set_current_win(target_win)
     debug.log("switching to target window:", target_win)
