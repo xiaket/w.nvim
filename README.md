@@ -60,6 +60,25 @@ require("lazy").setup("packages", {
 }
 ```
 
+### Integration with mini.icons
+
+If you have [mini.icons](https://github.com/echasnovski/mini.icons) installed, the icons in file explorer will use mini.icons instead of the default one. If not, you are encouraged to include it as a dependency:
+
+```
+{
+  "xiaket/w.nvim",
+  cmd = { "WToggleExplorer", "WSplitLeft", "WSplitRight", "WSplitUp", "WSplitDown" },
+  event = "BufEnter",
+  dependencies = {
+    {
+      "echasnovski/mini.icons",
+      version = false,
+    },
+  },
+  opts = {},
+}
+```
+
 ## Configuration
 
 Here's the default configuration with all available options:
