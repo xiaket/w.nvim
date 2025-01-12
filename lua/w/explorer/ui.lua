@@ -30,12 +30,43 @@ function M.highlight_current_file()
   end
 end
 
+---Get file icon, using mini.icon if available, falling back to configured icons
+---@param name string file name
+---@param type string|nil file type (directory or file)
+---@return string icon character
+local function get_icon(name, type)
+  -- Try using mini.icon if available
+  local ok, mini_icon = pcall(require, "mini.icons")
+  if ok then
+    if type == "directory" then
+      return mini_icon.get("directory", name)
+    else
+      return mini_icon.get("file", name)
+    end
+  end
+
+  -- Fallback to configured icons
+  return type == "directory" and config.options.explorer.icons.directory
+    or config.options.explorer.icons.file
+end
+
+local function format_entries(files)
+  local lines = {}
+  for _, file in ipairs(files) do
+    local icon = get_icon(file.name, file.type)
+    table.insert(lines, icon .. " " .. file.name)
+  end
+  return lines
+end
+
 local function configure_buffer(buf)
   vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
   vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(buf, "swapfile", false)
   vim.api.nvim_buf_set_option(buf, "filetype", config.const.filetype)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  vim.api.nvim_buf_set_option(buf, "number", false)
+  vim.api.nvim_buf_set_option(buf, "relativenumber", false)
+  vim.api.nvim_buf_set_option(buf, "swapfile", false)
 
   autocmd.setup_buffer_autocmds(buf)
   autocmd.setup_buffer_keymaps(buf)
@@ -109,11 +140,7 @@ function M.display_files(files, is_truncated)
   end
 
   -- Prepare lines
-  local lines = {}
-  for _, file in ipairs(files) do
-    local prefix = file.type == "directory" and "󰉋 " or "󰈚 "
-    table.insert(lines, prefix .. file.name)
-  end
+  local lines = format_entries(files)
 
   if is_truncated then
     table.insert(lines, "['j' to load more]")

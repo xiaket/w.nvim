@@ -4,11 +4,16 @@ local M = {}
 ---@field window_width number default file explorer window width
 ---@field max_files number maximum number of files in file explorer
 ---@field show_hidden boolean whether to show hidden files by default
+---@field icons table fallback icons when mini.icons is not available
 ---@field keymaps table default keymaps in file explorer
 local ExplorerDefaults = {
   window_width = 25,
   max_files = 100,
   show_hidden = true,
+  icons = {
+    directory = "󰉋",
+    file = "󰈚",
+  },
   keymaps = {
     close = { "q" },
     go_up = { "h" },
@@ -108,6 +113,19 @@ local function validate_explorer_config(config)
     key_type = type(config.keymaps[key])
     if key_type ~= "string" and key_type ~= "table" then
       return false, string.format("explorer.keymaps.%s must be a string or a table", key)
+    end
+  end
+
+  -- Validate default_icons if provided
+  if config.icons then
+    if type(config.icons) ~= "table" then
+      return false, "explorer.default_icons must be a table"
+    end
+    if type(config.icons.directory) ~= "string" then
+      return false, "explorer.default_icons.directory must be a string"
+    end
+    if type(config.icons.file) ~= "string" then
+      return false, "explorer.default_icons.file must be a string"
     end
   end
 
