@@ -43,7 +43,7 @@ end
 function M.find_window_for_file(current_win)
   -- Try previous active window
   local target = layout.get_previous_active_window()
-  if target and target ~= current_win then
+  if target and target ~= current_win and vim.api.nvim_win_is_valid(target) then
     return target
   end
 
