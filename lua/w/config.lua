@@ -24,10 +24,12 @@ local ExplorerDefaults = {
 ---@class Config
 ---@field explorer ExplorerConfig explorer configuration
 ---@field split_ratio number golden ratio for window splits
+---@field window_highlight_offset number offset for highlighting active window
 ---@field debug boolean enable debug
 local defaults = {
   explorer = ExplorerDefaults,
   split_ratio = 0.618,
+  window_highlight_offset = 15,
   debug = false,
 }
 
@@ -150,6 +152,10 @@ local function validate_config(config)
   local explorer_valid, explorer_error = validate_explorer_config(config.explorer)
   if not explorer_valid then
     return false, explorer_error
+  end
+
+  if type(config.window_highlight_offset) ~= "number" then
+    return false, "window_highlight_offset must be a number"
   end
 
   if

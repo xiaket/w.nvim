@@ -61,6 +61,20 @@ local function create_autocommands()
     group = group,
     callback = function()
       require("w.layout").update_previous_active_window()
+      if config.options.window_highlight_offset ~= nil then
+        local win = vim.api.nvim_get_current_win()
+        require("w.layout").highlight_inactive_window(win)
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("WinEnter", {
+    group = config.const.augroup,
+    callback = function()
+      if config.options.window_highlight_offset ~= nil then
+        local win = vim.api.nvim_get_current_win()
+        require("w.layout").highlight_active_window(win)
+      end
     end,
   })
 

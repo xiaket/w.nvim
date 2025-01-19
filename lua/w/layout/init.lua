@@ -116,41 +116,64 @@ end
 -- in layout/init.lua
 function M.redraw()
   local current_win = vim.api.nvim_get_current_win()
-
   if util.is_explorer(current_win) then
     return
   end
 
   local layout = vim.fn.winlayout()
-  local _, parent = util.find_window_in_tree(layout, current_win, nil)
-  if not parent then
-    return
-  end
 
-  local is_vertical = parent[1] == "row"
-  local total_size = 0
-  local siblings = vim.tbl_filter(function(node)
-    return node[1] == "leaf" and not util.is_explorer(node[2])
-  end, parent[2])
-
-  if #siblings < 2 then
-    return
-  end
-
-  for _, node in ipairs(siblings) do
-    if is_vertical then
-      total_size = total_size + vim.api.nvim_win_get_width(node[2])
-    else
-      total_size = total_size + vim.api.nvim_win_get_height(node[2])
+  -- Handle resize based on window changes
+  local prev_win = util.get_previous_active_window()
+  if not prev_win then
+    -- No previous window means this is a new split
+    -- Find immediate parent to determine split direction
+    local _, parent = util.find_window_in_tree(layout, current_win, nil)
+    if parent then
+      -- Only adjust the dimension that matches the split direction
+      util.adjust_size(parent, parent[1] == "row")
     end
+    return
   end
 
-  local target_size = math.floor(total_size * config.options.split_ratio)
-  if is_vertical then
-    vim.api.nvim_win_set_width(current_win, target_size)
-  else
-    vim.api.nvim_win_set_height(current_win, target_size)
+  -- Adjust only relevant dimension based on movement direction
+  local direction = util.get_relative_direction(prev_win, current_win)
+  if direction == "left" or direction == "right" then
+    -- Horizontal movement - adjust width
+    local row_parent = util.get_dimensional_parent(layout, current_win, true)
+    util.adjust_size(current_win, row_parent, true)
+  elseif direction == "up" or direction == "down" then
+    -- Vertical movement - adjust height
+    local col_parent = util.get_dimensional_parent(layout, current_win, false)
+    util.adjust_size(current_win, col_parent, false)
   end
+end
+
+-- Highlight active window with increased brightness
+function M.highlight_active_window(winid)
+  local offset = config.options.window_highlight_offset
+  if not offset then
+    return
+  end
+
+  local base_bg = util.get_background_color()
+  vim.api.nvim_set_hl(0, "WinActive", {
+    bg = util.adjust_brightness(base_bg, offset),
+  })
+  vim.api.nvim_win_set_option(winid, "winhl", "Normal:WinActive")
+end
+
+-- Dim inactive windows with decreased brightness
+function M.highlight_inactive_window(winid)
+  local offset = config.options.window_highlight_offset
+  if not offset then
+    return
+  end
+
+  local base_bg = util.get_background_color()
+  vim.api.nvim_set_hl(0, "WinInactive", {
+    bg = util.adjust_brightness(base_bg, -offset),
+  })
+  vim.api.nvim_win_set_option(winid, "winhl", "Normal:WinInactive")
 end
 
 return M

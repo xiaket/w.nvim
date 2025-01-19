@@ -222,4 +222,110 @@ function M.is_explorer(win_id)
   return ft == config.const.filetype
 end
 
+-- Helper function to find the relevant split parent using path information
+function M.get_dimensional_parent(tree, win_id, want_row)
+  local path = M.find_path_to_window(tree, win_id, {})
+  if not path then
+    return nil
+  end
+
+  -- Find first matching split from path
+  for _, step in ipairs(path) do
+    if step.node[1] == (want_row and "row" or "col") then
+      return step.node
+    end
+  end
+  return nil
+end
+
+-- Helper function to adjust window sizes in a split
+function M.adjust_size(current_win, parent, is_row)
+  if not parent then
+    return
+  end
+
+  local siblings = parent[2]
+  if #siblings < 2 then
+    return
+  end
+
+  -- Calculate total size
+  local total_size = 0
+  for _, node in ipairs(siblings) do
+    if node[1] == "leaf" then
+      total_size = total_size
+        + (is_row and vim.api.nvim_win_get_width(node[2]) or vim.api.nvim_win_get_height(node[2]))
+    else
+      -- For nested splits, use the first leaf window
+      local first_leaf = node
+      while first_leaf[1] ~= "leaf" do
+        first_leaf = first_leaf[2][1]
+      end
+      total_size = total_size
+        + (
+          is_row and vim.api.nvim_win_get_width(first_leaf[2])
+          or vim.api.nvim_win_get_height(first_leaf[2])
+        )
+    end
+  end
+
+  -- Calculate target size
+  local target_size = math.floor(total_size * config.options.split_ratio)
+
+  -- Adjust window sizes
+  for _, node in ipairs(siblings) do
+    if node[1] == "leaf" and node[2] == current_win then
+      -- Direct adjustment for current window
+      if is_row then
+        vim.api.nvim_win_set_width(current_win, target_size)
+      else
+        vim.api.nvim_win_set_height(current_win, target_size)
+      end
+      break
+    elseif node[1] ~= "leaf" then
+      -- Check if nested split contains current window
+      local found = M.find_window_in_tree(node, current_win, nil)
+      if found then
+        -- Adjust first leaf window of the nested split
+        local first_leaf = node
+        while first_leaf[1] ~= "leaf" do
+          first_leaf = first_leaf[2][1]
+        end
+        if is_row then
+          vim.api.nvim_win_set_width(first_leaf[2], target_size)
+        else
+          vim.api.nvim_win_set_height(first_leaf[2], target_size)
+        end
+        break
+      end
+    end
+  end
+end
+
+-- Utility functions for color manipulation
+local function hex_to_rgb(hex)
+  hex = hex:gsub("#", "")
+  return tonumber("0x" .. hex:sub(1, 2)),
+    tonumber("0x" .. hex:sub(3, 4)),
+    tonumber("0x" .. hex:sub(5, 6))
+end
+
+local function rgb_to_hex(r, g, b)
+  return string.format("#%02x%02x%02x", r, g, b)
+end
+
+function M.adjust_brightness(hex, percent)
+  local r, g, b = hex_to_rgb(hex)
+  r = math.min(255, math.max(0, r * (1 + percent / 100)))
+  g = math.min(255, math.max(0, g * (1 + percent / 100)))
+  b = math.min(255, math.max(0, b * (1 + percent / 100)))
+  return rgb_to_hex(r, g, b)
+end
+
+-- Get current theme's background color
+function M.get_background_color()
+  local normal_hl = vim.api.nvim_get_hl_by_name("Normal", true)
+  return normal_hl.background and string.format("#%06x", normal_hl.background) or "#192330"
+end
+
 return M
