@@ -69,7 +69,7 @@ local function create_autocommands()
   })
 
   vim.api.nvim_create_autocmd("WinEnter", {
-    group = config.const.augroup,
+    group = group,
     callback = function()
       if config.options.window_highlight_offset ~= nil then
         local win = vim.api.nvim_get_current_win()

@@ -86,23 +86,27 @@ Here's the default configuration with all available options:
 ```lua
 require('w').setup({
   -- File explorer settings
-  explorer_window_width = 25,      -- Width of explorer window
-  max_files = 100,                -- Maximum files to show in explorer
-  show_hidden = true,             -- Show hidden files
-    
-  -- Explorer keymaps
-  explorer_window_keymaps = {
-    close = "q",                -- Close explorer window
-    go_up = "h",                -- Go up one directory
-    open = "<CR>",              -- Open file/directory
+  explorer = {
+    window_width = 25,            -- Width of explorer window
+    max_files = 100,              -- Maximum files to show in explorer
+    show_hidden = true,           -- Show hidden files
+    icons = {
+      directory = "󰉋",            -- Fallback icon for directories
+      file = "󰈚",                 -- Fallback icon for files
+    },
+    keymaps = {
+      close = { "q" },            -- Close explorer window
+      go_up = { "h" },            -- Go up one directory
+      open = { "<CR>" },          -- Open file/directory
+    },
   },
-    
+
   -- Window management settings
-  split_ratio = 0.618,            -- Golden ratio for window splits
-    
-  -- Misc settings
-  explorer_window_filetype = "WExplorer", -- Filetype for explorer buffer
-  augroup = "W",                  -- Name of autocommand group
+  split_ratio = 0.618,            -- Golden ratio for window splits (0.5 to 1)
+  window_highlight_offset = 15,   -- Brightness offset for inactive windows (0 to disable)
+
+  -- Debug settings
+  debug = false,                  -- Enable debug logging
 })
 ```
 
@@ -115,6 +119,8 @@ require('w').setup({
 - `:WSplitRight` - Split window to the right or focus existing right window
 - `:WSplitUp` - Split window upward or focus existing upper window
 - `:WSplitDown` - Split window downward or focus existing lower window
+- `:WPrevBuffer` - Switch to the previous buffer
+- `:WNextBuffer` - Switch to the next buffer
 
 ### Window Split Rules
 
@@ -153,14 +159,18 @@ require('w').setup({
 
 ### Debug Mode
 
-For development and troubleshooting:
+For development and troubleshooting, enable debug logging in your configuration:
 
 ```lua
--- Enable debug logging
-require('w.debug').enabled = true
+require('w').setup({
+  debug = true,  -- Enable debug logging
+})
+```
 
--- Set custom log file path (default: /tmp/w-debug.log)
-require('w.debug').log_file_path = '/path/to/debug.log'
+Debug logs are written to `/tmp/w-debug.log` by default. You can also enable debug mode via environment variable:
+
+```bash
+W_DEBUG=1 nvim
 ```
 
 ## License
