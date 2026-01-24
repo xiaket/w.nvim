@@ -1,5 +1,7 @@
 local M = {}
 
+local fs = require("w.explorer.fs")
+
 -- Internal state
 ---@class ExplorerState
 ---@field _current_dir string current directory being displayed
@@ -61,7 +63,7 @@ end
 ---@private
 ---@param dir string
 function M.set_current_dir(dir)
-  _state._current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
+  _state._current_dir = fs.normalize_path(dir)
 end
 
 ---@private

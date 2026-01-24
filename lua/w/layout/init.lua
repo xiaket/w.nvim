@@ -148,32 +148,25 @@ function M.redraw()
   end
 end
 
--- Highlight active window with increased brightness
-function M.highlight_active_window(winid)
+-- Highlight window with adjusted brightness
+local function highlight_window(winid, is_active)
   local offset = config.options.window_highlight_offset
   if not offset then
     return
   end
-
+  local hl_name = is_active and "WinActive" or "WinInactive"
+  local brightness = is_active and offset or -offset
   local base_bg = util.get_background_color()
-  vim.api.nvim_set_hl(0, "WinActive", {
-    bg = util.adjust_brightness(base_bg, offset),
-  })
-  vim.api.nvim_win_set_option(winid, "winhl", "Normal:WinActive")
+  vim.api.nvim_set_hl(0, hl_name, { bg = util.adjust_brightness(base_bg, brightness) })
+  vim.api.nvim_win_set_option(winid, "winhl", "Normal:" .. hl_name)
 end
 
--- Dim inactive windows with decreased brightness
-function M.highlight_inactive_window(winid)
-  local offset = config.options.window_highlight_offset
-  if not offset then
-    return
-  end
+function M.highlight_active_window(winid)
+  highlight_window(winid, true)
+end
 
-  local base_bg = util.get_background_color()
-  vim.api.nvim_set_hl(0, "WinInactive", {
-    bg = util.adjust_brightness(base_bg, -offset),
-  })
-  vim.api.nvim_win_set_option(winid, "winhl", "Normal:WinInactive")
+function M.highlight_inactive_window(winid)
+  highlight_window(winid, false)
 end
 
 return M

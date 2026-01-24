@@ -53,7 +53,7 @@ function M.open(dir)
     end
 
     -- Update state
-    current_dir = vim.fn.fnamemodify(dir, ":p"):gsub("/$", "")
+    current_dir = fs.normalize_path(dir)
     debug.log("set directory to:", current_dir)
 
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do

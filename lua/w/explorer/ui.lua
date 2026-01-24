@@ -60,13 +60,18 @@ local function format_entries(files)
 end
 
 local function configure_buffer(buf)
-  vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-  vim.api.nvim_buf_set_option(buf, "bufhidden", "wipe")
-  vim.api.nvim_buf_set_option(buf, "filetype", config.const.filetype)
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
-  vim.api.nvim_buf_set_option(buf, "number", false)
-  vim.api.nvim_buf_set_option(buf, "relativenumber", false)
-  vim.api.nvim_buf_set_option(buf, "swapfile", false)
+  local opts = {
+    buftype = "nofile",
+    bufhidden = "wipe",
+    filetype = config.const.filetype,
+    modifiable = false,
+    number = false,
+    relativenumber = false,
+    swapfile = false,
+  }
+  for k, v in pairs(opts) do
+    vim.api.nvim_buf_set_option(buf, k, v)
+  end
 
   autocmd.setup_buffer_autocmds(buf)
   autocmd.setup_buffer_keymaps(buf)

@@ -4,36 +4,17 @@ local M = {}
 local config = require("w.config")
 local debug = require("w.debug")
 
--- Private window state management
-local window_state = (function()
-  local prev_active_window = nil
-
-  return {
-    -- Update previous active window
-    update = function()
-      local current_win = vim.api.nvim_get_current_win()
-      if prev_active_window == nil then
-        debug.log("setting previous active window to", current_win)
-        prev_active_window = current_win
-      else
-        debug.log("updating previous active window from", prev_active_window, "to", current_win)
-      end
-      prev_active_window = current_win
-    end,
-
-    -- Get previous active window
-    get = function()
-      return prev_active_window
-    end,
-  }
-end)()
+-- Private window state
+local prev_active_window = nil
 
 function M.update_previous_active_window()
-  window_state.update()
+  local current_win = vim.api.nvim_get_current_win()
+  debug.log("previous active window:", prev_active_window, "->", current_win)
+  prev_active_window = current_win
 end
 
 function M.get_previous_active_window()
-  return window_state.get()
+  return prev_active_window
 end
 
 -- Internal helpers
@@ -66,14 +47,14 @@ end
 ---@param direction string "left"|"right"|"up"|"down"
 ---@return number|nil window_id Window handle or nil if not found
 function M.find_directional_leaf(tree, direction)
-  if tree[1] == "leaf" then
-    return tree[2]
+  while tree[1] ~= "leaf" do
+    local children = tree[2]
+    if not children or #children == 0 then
+      return nil
+    end
+    tree = children[direction == "left" and #children or 1]
   end
-  -- When direction is "left", return the rightmost leaf node
-  -- When direction is "right", return the leftmost leaf node
-  local children = tree[2]
-  local child_index = direction == "left" and #children or 1
-  return M.find_directional_leaf(children[child_index], direction)
+  return tree[2]
 end
 
 --- Find the path from root to target window in the window tree

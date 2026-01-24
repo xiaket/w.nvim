@@ -8,17 +8,11 @@ local state = require("w.explorer.state")
 local fs = require("w.explorer.fs")
 local ui = require("w.explorer.ui")
 
--- Exposing the following things in state.
-M.get_window = state.get_window
-M.get_buffer = state.get_buffer
-M.get_current_dir = state.get_current_dir
-M.get_last_position = state.get_last_position
-
 ---Enter a directory
 ---@param dir string directory to open
 function M.enter_dir(dir)
   debug.log("entering directory:", dir)
-  local new_dir = dir:gsub("/$", "")
+  local new_dir = fs.normalize_path(dir)
   local files, is_truncated = fs.read_dir(new_dir)
   state.set_current_dir(new_dir)
   ui.display_files(files, is_truncated)
@@ -26,7 +20,7 @@ end
 
 ---Navigate up one directory
 function M.go_up()
-  local current_dir = M.get_current_dir()
+  local current_dir = state.get_current_dir()
   debug.dump_state("explorer enter go_up")
 
   local parent = vim.fn.fnamemodify(current_dir, ":h")
@@ -88,7 +82,7 @@ function M.open_current()
   end
 
   -- Construct full path
-  local current_dir = M.get_current_dir()
+  local current_dir = state.get_current_dir()
   local path = vim.fn.fnamemodify(current_dir .. "/" .. name, ":p")
   local stat = vim.loop.fs_stat(path)
   if not stat then
