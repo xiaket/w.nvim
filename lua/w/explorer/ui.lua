@@ -2,25 +2,23 @@ local M = {}
 
 -- Dependencies
 local config = require("w.config")
-local debug = require("w.debug")
 local autocmd = require("w.explorer.autocmd")
 local state = require("w.explorer.state")
 
 function M.highlight_current_file()
-  local ns_id = vim.api.nvim_create_namespace(config.const.namespace)
   local buf = state.get_buffer()
-  debug.log("highlight_current_file - start", buf, ns_id)
-
   if not buf then
-    debug.log("highlight_current_file - no buffer")
     return
   end
 
+  local ns_id = vim.api.nvim_create_namespace(config.const.namespace)
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+
   local current = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":t")
   if current == "" then
     return
   end
+
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   for i, line in ipairs(lines) do
     if line:match(current .. "$") then
@@ -80,54 +78,42 @@ end
 
 ---Create explorer buffer if not exists
 function M.ensure_buffer()
-  debug.dump_state("explorer enter ensure_buffer")
-  local buf = state.get_buffer()
+  if state.get_buffer() then
+    return
+  end
 
-  -- Reuse existing buffer if valid
+  local buf = vim.api.nvim_create_buf(false, true)
   if buf then
-    debug.log("reusing existing buffer", buf)
-    return
+    configure_buffer(buf)
   end
+end
 
-  -- Create new buffer
-  local new_buf = vim.api.nvim_create_buf(false, true)
-  if not new_buf then
-    debug.log("failed to create buffer")
-    return
+local function configure_window(win)
+  local opts = {
+    number = false,
+    relativenumber = false,
+    wrap = true,
+    winfixwidth = true,
+  }
+  for k, v in pairs(opts) do
+    vim.api.nvim_win_set_option(win, k, v)
   end
-
-  -- Set buffer options
-  configure_buffer(new_buf)
-  debug.dump_state("explorer exit ensure_buffer")
 end
 
 ---Create explorer window
 ---@return number? win_id
 function M.create_window()
-  debug.dump_state("explorer enter create_window")
-
   M.ensure_buffer()
   local buf = state.get_buffer()
-  debug.log("created new buf", buf)
   if not buf then
-    -- We have added a debug line in ensure_buffer, ignore here.
     return nil
   end
 
-  vim.cmd(
-    -- Run split then run buffer command.
-    string.format("topleft vertical %dsplit | buffer %d", config.options.explorer.window_width, buf)
-  )
+  vim.cmd(string.format("topleft vertical %dsplit | buffer %d", config.options.explorer.window_width, buf))
   local win = vim.api.nvim_get_current_win()
 
-  -- Set window options
-  vim.api.nvim_win_set_option(win, "number", false)
-  vim.api.nvim_win_set_option(win, "relativenumber", false)
-  vim.api.nvim_win_set_option(win, "wrap", true)
-  vim.api.nvim_win_set_option(win, "winfixwidth", true)
-
+  configure_window(win)
   state.set_window(win)
-  debug.dump_state("explorer exit create window")
   return win
 end
 
@@ -135,30 +121,21 @@ end
 ---@param files table list of files to display
 ---@param is_truncated boolean whether the list is truncated
 function M.display_files(files, is_truncated)
-  debug.dump_state("explorer enter display_files")
-  debug.log("displaying", #files, "files", is_truncated and "(truncated)" or "")
-
   local buf = state.get_buffer()
   if not buf then
-    debug.log("invalid buffer")
     return
   end
 
-  -- Prepare lines
   local lines = format_entries(files)
-
   if is_truncated then
     table.insert(lines, "['j' to load more]")
   end
 
-  -- Update buffer content
   vim.api.nvim_buf_set_option(buf, "modifiable", true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
-  -- Set up 'j' mapping
-  autocmd.setup_truncation_keymap(buf, is_truncated)
 
-  debug.dump_state("explorer after display_files")
+  autocmd.setup_truncation_keymap(buf, is_truncated)
 end
 
 return M

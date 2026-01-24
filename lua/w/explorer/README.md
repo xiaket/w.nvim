@@ -30,14 +30,18 @@ Main entry point that exports the public API:
 - `open(dir?)`: Open explorer window, optionally at specified directory
 - `close()`: Close explorer window
 - `toggle_explorer()`: Toggle explorer window
-- `with_editor_window(callback)`: Execute callback in a non-explorer window
+- `get_window()`: Get explorer window handle
+- `get_buffer()`: Get explorer buffer handle
+- `get_current_dir()`: Get current directory path
+- `get_last_position()`: Get last cursor position
 
 ### actions.lua
 Core file and directory operations:
+- `refresh_display(dir, ignore_max?)`: Refresh explorer with directory contents
 - `enter_dir(dir)`: Enter a directory
 - `go_up()`: Navigate to parent directory
 - `open_current()`: Open file/directory under cursor
-- State getters for window, buffer, current directory, and cursor position
+- `find_window_for_file(current_win)`: Find appropriate window to open file
 
 ### autocmd.lua
 Auto-commands and key mapping management:
@@ -49,6 +53,7 @@ Auto-commands and key mapping management:
 File system operations:
 - `read_dir(path, ignore_max?)`: Read directory contents with sorting
 - `is_valid_directory(path)`: Check if path is valid directory
+- `normalize_path(path)`: Normalize path to absolute form without trailing slash
 
 ### state.lua
 Explorer state management:
@@ -75,11 +80,6 @@ require('w.explorer').open('/path/to/dir')
 
 -- Toggle explorer
 require('w.explorer').toggle_explorer()
-
--- Execute command in editor window
-require('w.explorer').with_editor_window(function()
-  vim.cmd('write')
-end)
 ```
 
 ## Default Key Mappings

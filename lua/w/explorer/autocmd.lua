@@ -52,11 +52,8 @@ function M.setup_truncation_keymap(buf, is_truncated)
 
       if is_truncated and cursor_line == line_count then
         vim.schedule(function()
-          local fs = require("w.explorer.fs")
-          local ui = require("w.explorer.ui")
-          local current_dir = state.get_current_dir()
-          local full_files = fs.read_dir(current_dir, true)
-          ui.display_files(full_files, false)
+          local actions = require("w.explorer.actions")
+          actions.refresh_display(state.get_current_dir(), true)
         end)
         return ""
       end
