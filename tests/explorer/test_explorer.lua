@@ -118,6 +118,36 @@ T["toggle_explorer"]["should_create_new_splits_with_explorer_window"] = function
   assert_equal(width, child.lua_get("w.config.options.explorer.window_width"))
 end
 
+T["toggle_explorer"]["should_preserve_explorer_width_after_split_focus_switch"] = function()
+  -- Start with one window
+  assert_equal(#child.api.nvim_list_wins(), 1, "Should start with exactly one window")
+
+  -- Open explorer and get its configured width
+  child.lua("w.explorer.open()")
+  local explorer_win = child.lua_get("w.explorer.get_window()")
+  local expected_width = child.lua_get("w.config.options.explorer.window_width")
+  local width_before = child.api.nvim_win_get_width(explorer_win)
+  assert_equal(width_before, expected_width)
+
+  -- Focus is on explorer, split right should switch focus to main window (not create new)
+  child.lua("w.layout.split('right')")
+  -- Trigger redraw as the command would
+  child.lua("w.layout.redraw()")
+
+  -- Explorer width should remain unchanged
+  local width_after = child.api.nvim_win_get_width(explorer_win)
+  assert_equal(width_after, expected_width, "Explorer width should not change after split")
+  assert_equal(#child.api.nvim_list_wins(), 2, "Should still have two windows")
+
+  -- Split left to go back to explorer
+  child.lua("w.layout.split('left')")
+  child.lua("w.layout.redraw()")
+
+  -- Explorer width should still be unchanged
+  local width_final = child.api.nvim_win_get_width(explorer_win)
+  assert_equal(width_final, expected_width, "Explorer width should not change after returning")
+end
+
 -- Test directory reading and display
 T["directory_reading"] = new_set()
 

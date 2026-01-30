@@ -219,6 +219,15 @@ function M.get_dimensional_parent(tree, win_id, want_row)
   return nil
 end
 
+-- Helper function to get the first leaf window ID from a tree node
+local function get_first_leaf_win(node)
+  local first_leaf = node
+  while first_leaf[1] ~= "leaf" do
+    first_leaf = first_leaf[2][1]
+  end
+  return first_leaf[2]
+end
+
 -- Helper function to adjust window sizes in a split
 function M.adjust_size(current_win, parent, is_row)
   if not parent then
@@ -230,24 +239,32 @@ function M.adjust_size(current_win, parent, is_row)
     return
   end
 
-  -- Calculate total size
+  -- Calculate total size, excluding explorer window when adjusting widths
   local total_size = 0
+  local non_explorer_count = 0
   for _, node in ipairs(siblings) do
+    local win_id
     if node[1] == "leaf" then
-      total_size = total_size
-        + (is_row and vim.api.nvim_win_get_width(node[2]) or vim.api.nvim_win_get_height(node[2]))
+      win_id = node[2]
     else
-      -- For nested splits, use the first leaf window
-      local first_leaf = node
-      while first_leaf[1] ~= "leaf" do
-        first_leaf = first_leaf[2][1]
-      end
-      total_size = total_size
-        + (
-          is_row and vim.api.nvim_win_get_width(first_leaf[2])
-          or vim.api.nvim_win_get_height(first_leaf[2])
-        )
+      win_id = get_first_leaf_win(node)
     end
+
+    local size = is_row and vim.api.nvim_win_get_width(win_id) or vim.api.nvim_win_get_height(win_id)
+
+    -- When adjusting widths (is_row), exclude explorer window from total
+    if is_row and M.is_explorer(win_id) then
+      debug.log("excluding explorer window from size calculation:", win_id)
+    else
+      total_size = total_size + size
+      non_explorer_count = non_explorer_count + 1
+    end
+  end
+
+  -- If only one non-explorer window in horizontal split, no need to adjust
+  if is_row and non_explorer_count < 2 then
+    debug.log("only one non-explorer window, skipping size adjustment")
+    return
   end
 
   -- Calculate target size
